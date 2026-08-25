@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/*
+ * Design tokens extracted from the `diseno/` prototype (Tailwind v4 @theme).
+ * The prototype references these as arbitrary values; here they become named
+ * tokens so the shell and component partials stay readable.
+ */
+@theme {
+  /* Surfaces */
+  --color-canvas: #0d1219;
+  --color-sidebar: #070c12;
+  --color-surface: #0f1822;
+  --color-edge: #1a2535;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-data: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Raw data text (METAR/TAF/NOTAM verbatim, decoded overrides) */
+  --color-raw: #fde68a;
+
+  /* Brand / primary action */
+  --color-accent: #2563eb;
+  --color-accent-soft: #93c5fd;
+}
+
+@layer base {
+  /* The shell must never scroll horizontally at 320px, 768px, or 1280px. */
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-slate-200);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Prototype scrollbar treatment */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-edge) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-edge);
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  /*
+   * 44px minimum touch targets (WCAG 2.5.5, the 44x44 recommended target).
+   * Every interactive shared partial ships this class on its controls; the
+   * component tests assert on it.
+   */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

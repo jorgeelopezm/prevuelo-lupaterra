@@ -1,0 +1,10 @@
+{# Shared placeholder screen: unavailability conveyed by text, never color or
+   sample data. Rendered by the feature module routes (Group 7) and reused as
+   the fragment target for htmx requests. #}
+{% from 'partials/components.njk' import pageHeader, card, emptyState %}
+{{ pageHeader(title, subtitle) }}
+<div class="max-w-3xl">
+  {% call card('p-6') %}
+    {{ emptyState(placeholderTitle, placeholderMessage, icon) }}
+  {% endcall %}
+</div>

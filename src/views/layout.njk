@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="{{ lang }}">
+{% from 'partials/icons.njk' import icon %}
+{% from 'partials/nav.njk' import navList, shellFooter %}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script src="/assets/htmx.min.js" defer></script>
+</head>
+<body class="bg-canvas text-slate-200 min-h-screen flex flex-col lg:flex-row">
+
+  <a href="#main"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded focus:bg-accent focus:text-white focus:text-sm">{{ shell.t.translate('shell.skip_to_content') }}</a>
+
+  {# Drawer toggle (off-canvas drawer below the large breakpoint). A checkbox +
+     peer label keeps it usable with JavaScript disabled: the drawer is a real
+     form control state, and navigating a link inside it closes it. #}
+  <input type="checkbox" id="drawer-toggle" class="peer sr-only" aria-hidden="true">
+  <label for="drawer-toggle" class="fixed inset-0 z-30 bg-black/70 hidden peer-checked:block lg:hidden" aria-hidden="true"></label>
+  <aside id="drawer" class="fixed top-0 left-0 z-40 h-full w-72 max-w-[85vw] bg-sidebar border-r border-edge flex flex-col -translate-x-full peer-checked:translate-x-0 transition-transform duration-200 lg:hidden" aria-label="{{ shell.t.translate('shell.drawer') }}">
+    <div class="px-4 py-4 border-b border-edge flex items-center justify-between">
+      <span class="text-sm font-bold text-white tracking-wide">PREFLIGHT</span>
+      <label for="drawer-toggle" class="touch-target rounded text-slate-400">{{ shell.t.translate('shell.close_menu') }}</label>
+    </div>
+    <div class="mx-3 mt-3 mb-1 px-3 py-2 rounded bg-surface border border-edge">
+      <div class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">{{ shell.t.translate('nav.active_ac') }}</div>
+      <div class="text-sm font-semibold text-white font-data">—</div>
+      <div class="text-[11px] text-slate-400">{{ shell.t.translate('shell.no_aircraft') }}</div>
+    </div>
+    {{ navList(destinations, shell.t.translate('nav.main')) }}
+    {{ shellFooter(shell) }}
+  </aside>
+
+  {# Desktop sidebar: permanent from the large breakpoint up, hidden below it. #}
+  <aside class="hidden lg:flex lg:w-56 lg:flex-shrink-0 flex-col bg-sidebar border-r border-edge h-screen sticky top-0" aria-label="{{ shell.t.translate('shell.sidebar') }}">
+    <div class="px-4 py-5 border-b border-edge">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded bg-accent flex items-center justify-center flex-shrink-0">
+          {{ icon('plane') }}
+        </div>
+        <div>
+          <div class="text-sm font-bold text-white tracking-wide">PREFLIGHT</div>
+          <div class="text-[10px] text-slate-400 font-data tracking-widest">RISK MGMT</div>
+        </div>
+      </div>
+    </div>
+    <div class="mx-3 mt-3 mb-1 px-3 py-2 rounded bg-surface border border-edge">
+      <div class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">{{ shell.t.translate('nav.active_ac') }}</div>
+      <div class="text-sm font-semibold text-white font-data">—</div>
+      <div class="text-[11px] text-slate-400">{{ shell.t.translate('shell.no_aircraft') }}</div>
+    </div>
+    {{ navList(destinations, shell.t.translate('nav.main')) }}
+    {{ shellFooter(shell) }}
+  </aside>
+
+  {# Main column: top bar on phones, content, and the phone tab bar. #}
+  <div class="flex-1 min-w-0 flex flex-col">
+    <header class="lg:hidden flex items-center gap-3 px-2 h-14 border-b border-edge bg-sidebar flex-shrink-0">
+      <label for="drawer-toggle" class="touch-target rounded text-slate-400" aria-label="{{ shell.t.translate('shell.menu') }}">
+        <span class="block h-0.5 w-5 bg-current rounded"></span>
+        <span class="block h-0.5 w-5 bg-current rounded mt-1"></span>
+        <span class="block h-0.5 w-5 bg-current rounded mt-1"></span>
+      </label>
+      <span class="text-sm font-bold text-white tracking-wide">PREFLIGHT</span>
+      <span class="ml-auto text-xs font-data text-slate-400">—</span>
+    </header>
+
+    <main id="main" class="flex-1 min-w-0 px-4 py-6 lg:p-8">
+      {{ content | safe }}
+    </main>
+
+    {# Phone-width thumb-reach tab bar (hidden from the large breakpoint up). #}
+    <nav class="lg:hidden sticky bottom-0 z-20 border-t border-edge bg-sidebar flex" aria-label="{{ shell.t.translate('nav.main') }}">
+      {%- for d in destinations %}
+      <a href="{{ d.href }}"
+        {%- if d.active %} aria-current="page"{% endif %}
+        class="touch-target flex-1 flex-col gap-0.5 px-1 text-[10px] font-medium {% if d.active %}text-blue-300{% else %}text-slate-400{% endif %}">
+        {{ icon(d.icon) }}
+        <span class="leading-none">{{ d.label }}</span>
+      </a>
+      {%- endfor %}
+    </nav>
+  </div>
+</body>
+</html>

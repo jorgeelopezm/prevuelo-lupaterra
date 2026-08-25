@@ -1,0 +1,40 @@
+{# Inline icon set ported from the prototype (Lucide-style, stroke-based). #}
+{% macro home() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4" aria-hidden="true"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
+{%- endmacro %}
+
+{% macro cloud() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4" aria-hidden="true"><path d="M17.5 19H9a7 7 0 110-14 6.97 6.97 0 016.3 4A5 5 0 1117.5 19z"/></svg>
+{%- endmacro %}
+
+{% macro list() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M5 6v.01M5 12v.01M5 18v.01"/></svg>
+{%- endmacro %}
+
+{% macro shield() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+{%- endmacro %}
+
+{% macro plane() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4" aria-hidden="true"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+{%- endmacro %}
+
+{% macro book() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+{%- endmacro %}
+
+{% macro alert() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+{%- endmacro %}
+
+{% macro icon(name) -%}
+{%- if name === 'home' -%}{{ home() }}
+{%- elif name === 'cloud' -%}{{ cloud() }}
+{%- elif name === 'list' -%}{{ list() }}
+{%- elif name === 'shield' -%}{{ shield() }}
+{%- elif name === 'plane' -%}{{ plane() }}
+{%- elif name === 'book' -%}{{ book() }}
+{%- elif name === 'alert' -%}{{ alert() }}
+{%- else -%}{{ book() }}
+{%- endif -%}
+{%- endmacro %}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+diseno/
+openspec/
+.claude/
+.cline/
+.clinerules/
+.openspec/
+package-lock.json
+*.log

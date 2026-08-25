@@ -1,0 +1,21 @@
+{
+  "name": "ga-mcp-aviation-weather",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone MCP server for aeronautical data (METAR, TAF, NOTAM, SIGMET, decode). Ships with a mock provider by default; no external credentials required.",
+  "type": "module",
+  "engines": {
+    "node": "^22.0.0"
+  },
+  "scripts": {
+    "start": "node --import tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "pino": "^9.0.0",
+    "zod": "^4.4.3"
+  }
+}

@@ -1,0 +1,21 @@
+{# Test-only kitchen sink: renders every shared component partial for the
+   component tests. Not registered as a route. #}
+{% from 'partials/components.njk' import card, pageHeader, statusChip, badge, rawPlainToggle, progressBar, emptyState %}
+{% call card('p-4 mb-4') %}
+  {{ pageHeader('Kitchen sink', 'Renders every shared partial') }}
+  <div class="space-y-3">
+    {{ statusChip('VFR', 'good') }}
+    {{ statusChip('ADVERTENCIA', 'warn') }}
+    {{ statusChip('IFR', 'bad') }}
+    {{ statusChip('LIFR', 'severe') }}
+    {{ statusChip('NEUTRO', 'neutral') }}
+  </div>
+{% endcall %}
+<div class="space-y-3">
+  {{ badge('CRÍTICO', 'critical') }}
+  {{ badge('AVISO', 'warn') }}
+  {{ badge('INFO', 'neutral') }}
+</div>
+{{ rawPlainToggle('test-toggle', 'Texto plano', 'Texto crudo', 'plain') }}
+{{ progressBar(3, 10, 'warn', '3 / 10') }}
+{{ emptyState('Sin datos', 'No hay contenido aquí todavía.', 'book') }}

@@ -1,0 +1,25 @@
+services:
+  db:
+    # PostgreSQL 16 with the pgvector extension preloaded (module is enabled
+    # by migration 001; this image guarantees the binary is present).
+    image: pgvector/pgvector:pg16
+    container_name: ga-core-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ga
+      POSTGRES_PASSWORD: ga
+      POSTGRES_DB: ga_core
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ga -d ga_core']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+    # Named volume so data survives container recreation.
+    name: ga-core-pgdata

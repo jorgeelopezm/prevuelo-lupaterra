@@ -1,0 +1,9 @@
+{# Localized 404 page rendered inside the application shell. #}
+{% from 'partials/components.njk' import pageHeader, card, emptyState %}
+{{ pageHeader(title) }}
+<div class="max-w-3xl">
+  {% call card('p-6') %}
+    {{ emptyState(title, message, 'alert') }}
+  {% endcall %}
+  <p class="mt-4 text-sm"><a href="/{{ locale }}" class="touch-target text-blue-300 hover:text-blue-200 font-medium">{{ t.translate('error.back_home') }}</a></p>
+</div>

@@ -1,0 +1,54 @@
+{
+  "name": "ga-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "General aviation pre-flight decision-support core skeleton. Server-rendered web app (root) plus the aviation-weather MCP server. Shared source of truth lives in openspec/.",
+  "type": "module",
+  "engines": {
+    "node": "^22.0.0"
+  },
+  "workspaces": [
+    "mcp/aviation-weather"
+  ],
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/server/index.ts",
+    "start": "node --env-file-if-exists=.env --import tsx src/server/index.ts",
+    "assets:build": "node scripts/build-assets.mjs",
+    "assets:watch": "tailwindcss -i src/assets/app.css -o dist/assets/app.css --watch --content \"src/**/*.{njk,ts}\" \"src/assets/*.css\"",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx --env-file-if-exists=.env db/migrate.ts",
+    "db:seed": "tsx --env-file-if-exists=.env db/seed/index.ts",
+    "test": "tsx --test \"src/**/*.test.ts\" \"db/**/*.test.ts\"",
+    "test:mcp": "npm run test --workspace ga-mcp-aviation-weather --if-present",
+    "lint": "eslint src db mcp/aviation-weather",
+    "format": "prettier --write \"src/**/*.{ts,css}\" \"db/**/*.ts\" \"mcp/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,css}\" \"db/**/*.ts\" \"mcp/**/*.ts\"",
+    "check": "npm run assets:build && npm run typecheck && npm run lint && npm run format:check && npm run test && npm run test:mcp"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "^22.0.0",
+    "@types/nunjucks": "^3.2.6",
+    "@types/pg": "^8.23.1",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.0.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/formbody": "^9.0.0",
+    "@fastify/static": "^10.1.3",
+    "@node-rs/argon2": "^2.1.0",
+    "fastify": "^5.12.1",
+    "fastify-plugin": "^6.0.0",
+    "htmx.org": "^2.0.10",
+    "nunjucks": "^3.2.4",
+    "pg": "^8.23.0",
+    "zod": "^4.4.3"
+  }
+}

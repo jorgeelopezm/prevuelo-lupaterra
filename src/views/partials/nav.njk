@@ -1,0 +1,48 @@
+{# Navigation list rendered from the registry-derived `destinations` context.
+   Used identically by the desktop sidebar, the off-canvas drawer, and the phone
+   tab bar — one list, three presentations. Nunjucks macros receive everything
+   as parameters: they cannot see the render context. #}
+{% from 'partials/icons.njk' import icon %}
+
+{% macro navList(items, navLabel) -%}
+<nav class="flex-1 px-2 py-2 space-y-0.5" aria-label="{{ navLabel }}">
+  {%- for d in items %}
+  <a href="{{ d.href }}"
+    {%- if d.active %} aria-current="page"{% endif %}
+    class="touch-target w-full justify-start gap-3 px-3 rounded text-sm {% if d.active %}bg-blue-600/20 text-blue-300 border border-blue-600/50{% else %}text-slate-400 border border-transparent hover:text-slate-200 hover:border-slate-500{% endif %}">
+    {{ icon(d.icon) }}
+    <span class="font-medium">{{ d.label }}</span>
+  </a>
+  {%- endfor %}
+</nav>
+{%- endmacro %}
+
+{# The shell footer block shared by the desktop sidebar and the drawer:
+   active aircraft, locale switcher, and pilot identity. `shell` bundles the
+   request-scoped shell data (translator, switcher links, pilot, locale). #}
+{% macro shellFooter(shell) -%}
+<div class="px-3 py-3 border-t border-edge">
+  <div class="flex items-center gap-1.5 mb-2 text-slate-400">
+    <span class="text-[10px] uppercase tracking-widest">{{ shell.t.translate('nav.language') }}</span>
+  </div>
+  <div class="flex gap-1">
+    {%- for l in shell.switcherLinks %}
+    <a href="{{ l.href }}"
+      class="touch-target flex-1 px-1 text-[10px] font-bold uppercase tracking-wide {% if l.active %}bg-accent text-white{% else %}text-slate-400 bg-surface border border-edge hover:border-slate-500 hover:text-slate-300{% endif %}">{{ l.code }}</a>
+    {%- endfor %}
+  </div>
+</div>
+<div class="px-4 py-3 border-t border-edge">
+  {%- if shell.isAuthenticated and shell.pilot %}
+  <div class="flex items-center gap-2.5">
+    <div class="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">{{ shell.pilotInitials }}</div>
+    <div class="min-w-0">
+      <div class="text-xs font-semibold text-slate-300 truncate">{{ shell.pilot.displayName }}</div>
+      <div class="text-[10px] text-slate-400 font-data">{{ shell.pilot.email }}</div>
+    </div>
+  </div>
+  {%- else %}
+  <a href="/{{ shell.locale }}/auth/sign-in" class="touch-target w-full justify-start text-sm font-medium text-blue-300 hover:text-blue-200">{{ shell.t.translate('auth.sign_in') }}</a>
+  {%- endif %}
+</div>
+{%- endmacro %}
