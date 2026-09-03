@@ -26,6 +26,7 @@ export function buildWeatherServer(config: McpConfig): BuiltWeatherServer {
   const provider = createWeatherProvider({
     provider: config.WEATHER_PROVIDER,
     aemetApiKey: config.AEMET_OPENDATA_API_KEY,
+    avwxApiToken: config.AVWX_API_TOKEN,
   })
   const cache = new ResponseCache(config.MCP_CACHE_TTL_SECONDS * 1000)
   const rateLimiter = new RateLimiter(config.MCP_RATE_LIMIT_PER_MINUTE)

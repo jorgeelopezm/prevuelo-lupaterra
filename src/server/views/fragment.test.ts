@@ -28,7 +28,7 @@ test('a fragment request renders the partial without the document shell', async 
   assert.ok(!fragment.body.includes('<head>'), 'no head')
   assert.ok(!fragment.body.includes('<aside'), 'no sidebar')
   assert.ok(!fragment.body.includes('<body'), 'no body wrapper')
-  assert.ok(fragment.body.includes('En desarrollo'), 'the partial content is present')
+  assert.ok(fragment.body.includes('Indicadores OACI'), 'the partial content is present')
   await app.close()
 })
 
@@ -63,7 +63,7 @@ test('fragments still render the components, not a shell stub', async () => {
   })
   assert.equal(fragment.statusCode, 200)
   assert.match(fragment.headers['content-type'] ?? '', /text\/html/)
-  assert.ok(fragment.body.includes('In progress'), 'localized placeholder text (en)')
+  assert.ok(fragment.body.includes('ICAO indicators'), 'localized screen content (en)')
   assert.ok(!fragment.body.includes('PREFLIGHT'), 'branding lives only in the shell')
   await app.close()
 })

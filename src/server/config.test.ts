@@ -80,6 +80,46 @@ test('valid minimal environment parses and applies defaults', () => {
   assert.equal(cfg.LOG_LEVEL, 'info')
 })
 
+test('valid minimal environment defaults the weather MCP client to stdio', () => {
+  const cfg = loadConfig(baseEnv())
+  assert.equal(cfg.WEATHER_MCP_TRANSPORT, 'stdio')
+  assert.equal(cfg.WEATHER_MCP_TIMEOUT_MS, 8000)
+  assert.equal(cfg.WEATHER_MCP_URL, undefined)
+})
+
+test('WEATHER_MCP_TRANSPORT http without WEATHER_MCP_URL aborts naming the variable', () => {
+  const env = baseEnv({ WEATHER_MCP_TRANSPORT: 'http' })
+  assert.throws(
+    () => loadConfig(env),
+    (err) => err instanceof ConfigError && err.message.includes('WEATHER_MCP_URL'),
+  )
+})
+
+test('WEATHER_MCP_TRANSPORT http with WEATHER_MCP_URL parses successfully', () => {
+  const cfg = loadConfig(
+    baseEnv({ WEATHER_MCP_TRANSPORT: 'http', WEATHER_MCP_URL: 'http://localhost:3001/mcp' }),
+  )
+  assert.equal(cfg.WEATHER_MCP_TRANSPORT, 'http')
+  assert.equal(cfg.WEATHER_MCP_URL, 'http://localhost:3001/mcp')
+})
+
+test('avwx weather provider without its token aborts naming AVWX_API_TOKEN, not another provider\'s credential', () => {
+  const env = baseEnv({ WEATHER_PROVIDER: 'avwx' })
+  assert.throws(
+    () => loadConfig(env),
+    (err) =>
+      err instanceof ConfigError &&
+      err.message.includes('AVWX_API_TOKEN') &&
+      !err.message.includes('AEMET_OPENDATA_API_KEY'),
+  )
+})
+
+test('avwx weather provider with its token parses successfully', () => {
+  const cfg = loadConfig(baseEnv({ WEATHER_PROVIDER: 'avwx', AVWX_API_TOKEN: 'avwx-token' }))
+  assert.equal(cfg.WEATHER_PROVIDER, 'avwx')
+  assert.equal(cfg.AVWX_API_TOKEN, 'avwx-token')
+})
+
 test('non-mock provider with its key set parses successfully', () => {
   const cfg = loadConfig(
     baseEnv({

@@ -41,6 +41,24 @@ test('a non-mock provider with its key parses successfully', () => {
   assert.equal(config.AEMET_OPENDATA_API_KEY, 'aemet-key')
 })
 
+test('avwx without its token aborts naming AVWX_API_TOKEN specifically', () => {
+  assert.throws(
+    () => loadConfig({ WEATHER_PROVIDER: 'avwx' }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigError)
+      assert.match(error.message, /AVWX_API_TOKEN/)
+      assert.doesNotMatch(error.message, /AEMET_OPENDATA_API_KEY/)
+      return true
+    },
+  )
+})
+
+test('avwx with its token parses successfully', () => {
+  const config = loadConfig({ WEATHER_PROVIDER: 'avwx', AVWX_API_TOKEN: 'avwx-token' })
+  assert.equal(config.WEATHER_PROVIDER, 'avwx')
+  assert.equal(config.AVWX_API_TOKEN, 'avwx-token')
+})
+
 test('malformed MCP_PORT names the variable and its constraint', () => {
   assert.throws(
     () => loadConfig({ MCP_PORT: 'not-a-number' }),

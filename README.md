@@ -87,8 +87,11 @@ descriptive, secret-free error naming the offending variable.
 | `EMBEDDING_PROVIDER` | `mock` | `mock` (default) — real providers deferred |
 | `EMBEDDING_DIMENSIONS` | `768` | pgvector dimensionality (fixed after migration 003) |
 | `EMBEDDING_API_KEY` | — | Required by a non-mock embedding provider |
-| `WEATHER_PROVIDER` | `mock` | `mock` (default) — real providers deferred |
-| `AEMET_OPENDATA_API_KEY` | — | Required by a non-mock weather provider |
+| `WEATHER_PROVIDER` | `mock` | `mock` (default, Iberia-only fixture data) \| `avwx` (real, global) \| `aemet`/`ipma`/`ead` (not yet implemented) |
+| `AEMET_OPENDATA_API_KEY` | — | Required by `WEATHER_PROVIDER=aemet` |
+| `IPMA_API_KEY` | — | Required by `WEATHER_PROVIDER=ipma` |
+| `EAD_API_KEY` | — | Required by `WEATHER_PROVIDER=ead` |
+| `AVWX_API_TOKEN` | — | Required by `WEATHER_PROVIDER=avwx` — free tier at [account.avwx.rest](https://account.avwx.rest) |
 | `MCP_TRANSPORT` | `stdio` | `stdio` \| `http` (overridable by `--transport`) |
 | `MCP_PORT` | `3001` | Port for the MCP HTTP transport |
 | `MCP_CACHE_TTL_SECONDS` | `60` | MCP response-cache TTL |
@@ -116,10 +119,27 @@ TEST_DATABASE_URL=postgres://ga:ga@localhost:5432/ga_core_test npm test
 
 ## MCP server
 
-The MCP server (`mcp/aviation-weather`) runs standalone and needs **no external
-credentials** — the default mock provider returns sample data that is always
-labeled as non-operational. The transport is selected by the `MCP_TRANSPORT`
-environment variable or the `--transport` flag:
+The MCP server (`mcp/aviation-weather`) runs standalone. By default it needs
+**no external credentials** — the mock provider returns sample data for four
+Iberian aerodromes (LEMD, LEBL, LPPT, LPPR) and three Iberian FIRs (LECM,
+LECB, LPPC), always labeled as non-operational. For real, worldwide METAR/TAF
+data (e.g. `SUMU`, or any other station outside that fixture set), set
+`WEATHER_PROVIDER=avwx` and `AVWX_API_TOKEN` (free tier at
+[account.avwx.rest](https://account.avwx.rest)).
+
+**AVWX plan gating, verified live against a real free-tier token:**
+`get_metar`/`get_taf` work on the free tier (AVWX's single-station endpoints).
+`get_notams` and `get_sigmet` do **not** — AVWX gates `/notam` behind its
+"enterprise" plan and `/airsigmet` behind "pro/enterprise"; on a free-tier
+token those two tools fail with a structured error naming AVWX's own
+plan-gating message (never fabricated data). A paid AVWX plan is required to
+use them. Separately, `get_sigmet` against `avwx` is always a best-effort
+match — AVWX's `/airsigmet` endpoint has no native FIR filter, so results are
+filtered by matching the requested FIR against each advisory's raw text, not
+a guaranteed lookup.
+
+The transport is selected by the `MCP_TRANSPORT` environment variable or the
+`--transport` flag:
 
 ```sh
 # stdio transport (default)

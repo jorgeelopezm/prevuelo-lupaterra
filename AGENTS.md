@@ -156,6 +156,90 @@ web, retrieval, MCP — is explicitly labeled as sample data not for operational
 use. Upstream failures return structured errors with no report text and no
 substituted data.
 
+## Software assurance: DO-178B applicability and the adapted process this repo follows
+
+### Does DO-178B apply here? No.
+
+DO-178B/DO-178C ("Software Considerations in Airborne Systems and Equipment
+Certification") governs software that (a) executes as part of a
+type-certificated or STC'd aircraft system, and (b) whose anomalous behavior
+contributes to an aircraft-level failure condition classified through
+ARP4754A/ARP4761 hazard analysis, certified via a DER/ODA relationship with
+the FAA/EASA and formal Stage-of-Involvement audits.
+
+This repository is a **ground-based, server-rendered advisory web
+application**. It never runs on an aircraft, is never installed as part of an
+aircraft system, and has no type certificate or hazard classification to
+inherit — there is no certification basis for a browser tab to certify
+against. Even if this were ever packaged as an Electronic Flight Bag app, the
+applicable guidance (FAA AC 120-76D and its EASA equivalents) only pulls in
+DO-178B for installed, aircraft-interfaced (Type C) EFB functions — not for an
+advisory Type A/B app like this one.
+
+**Conclusion: this project does not meet DO-178B, and pursuing formal DO-178B
+certification for it is not the right target** — there is no TC/STC, no
+DER/ODA relationship, and no SOI audit process for it to certify against. No
+code, doc, comment, or user-facing text in this repository may claim or imply
+DO-178B compliance or certification.
+
+### What we adopt instead: DO-178B-*inspired* engineering discipline
+
+Because this is aviation-adjacent decision-support software, we borrow
+DO-178B's process discipline — traceability, structured verification,
+configuration management, and independent QA — as a voluntary internal
+quality bar, mapped onto the tools this repo already uses (openspec,
+`node:test`, git). This is **not** a certification basis and must never be
+represented as one.
+
+| DO-178B concept | Adapted practice in this repo |
+| --- | --- |
+| PSAC (certification basis + plan) | This section of `AGENTS.md` |
+| Software Requirements Data | `openspec/specs/<capability>/spec.md` — `SHALL` requirements with `WHEN`/`THEN` scenarios |
+| Software Design Description | `design.md` per `openspec/changes/<name>/` |
+| Traceability | Every scenario maps to ≥1 test; every non-trivial capability traces to an openspec requirement (see the Traceability rule below) |
+| Software Verification Plan | The happy/sad/eval test policy (working agreement rule 2) plus the `npm run check` gate, run on every change |
+| Structural coverage | Not formally measured — no real DAL applies. Recommended (not blocking) for Tier 1 capabilities (below); a coverage tool (e.g. `c8`) may be added as a should-do |
+| Software Configuration Management Plan | git history plus `openspec/changes/archive/`; no force-push to `main`; each change is tied to one `openspec` change id |
+| Software Quality Assurance Plan | PR review required before merge; the reviewer checks the working agreement's four rules plus this table |
+| Problem reporting | Issues tracked and referenced by their `openspec` change id |
+| Certification liaison / SOI audits | N/A — no certification authority relationship exists or is claimed |
+
+### Internal Design Assurance Tiers (explicitly *not* DO-178B DALs)
+
+Real DALs (A–E) require a certified aircraft-level hazard analysis this
+project does not have and is not eligible for. Instead, each capability
+self-declares a lightweight tier based on the cost of the tool being wrong, so
+the practices above concentrate where they matter most:
+
+- **Tier 1 — safety-adjacent advisory** (weather/NOTAM retrieval and display,
+  risk assessment scoring): the no-fabrication rule is mandatory and
+  test-enforced — every upstream failure returns a structured error, never
+  substituted data, and provenance/sample-data caveats are required on every
+  operational-looking value (already implemented and tested for
+  `weather-notams-page`/`weather-mcp`). Aim for requirements-based test
+  coverage of every scenario in the capability's spec.
+- **Tier 2 — operational record-keeping** (aircraft/logbook, checklists): a
+  wrong entry matters, but doesn't silently misinform a go/no-go decision the
+  way weather data does. Happy/sad path tests are required; evals encouraged.
+- **Tier 3 — informational** (documents/AIS assistant, dashboard chrome): the
+  standard web-app testing rigor of working agreement rule 2 is sufficient.
+
+A new capability's proposal states its tier in the Impact section so
+reviewers apply the right bar.
+
+### Traceability rule (enforced going forward)
+
+- Every `### Requirement:` in an `openspec/specs/**/spec.md` file is exercised
+  by at least one `#### Scenario:` — already required by the openspec schema.
+- Every scenario maps to at least one `node:test` test whose name references
+  the behavior it verifies (follow the naming style already used in
+  `mcp/aviation-weather/src/**/*.test.ts`).
+- A change's `tasks.md` verification group states, per Tier 1 capability,
+  which scenarios were tested and how (the pattern already established in
+  `openspec/changes/meteorologia-page/tasks.md`, group 7 — keep following it).
+- `npm run check` (and `npm run test:mcp`) is green before a change is
+  archived — the closest analog this repo has to an SVP verification gate.
+
 ## Conventions to keep
 
 - **Configuration** flows through the shared Zod schema; both runtimes log their

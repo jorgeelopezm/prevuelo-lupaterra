@@ -4,6 +4,7 @@ import type { PoolFacade } from '../platform/db/pool.js'
 import type { IdentityStores } from '../platform/identity/types.js'
 import type { ModuleId } from '../platform/i18n/segments.js'
 import type { EmbeddingProvider } from '../platform/retrieval/types.js'
+import type { WeatherMcpClient } from '../platform/weather-mcp/types.js'
 import type { AppConfig } from '../server/config.js'
 import type { ViewRenderer } from '../server/views/views.js'
 
@@ -19,6 +20,8 @@ export interface ModuleContext {
   views: ViewRenderer
   /** Embedding provider selected from configuration (mock by default). */
   embeddings: EmbeddingProvider
+  /** Client for the aviation-weather MCP server (METAR/TAF/NOTAM/SIGMET/decode). */
+  weatherMcp: WeatherMcpClient
 }
 
 /**

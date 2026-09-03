@@ -34,8 +34,11 @@ export interface ViewRenderer {
   render(req: FastifyRequest, opts: RenderOptions): string
 }
 
-/** Nunjucks filter functions receive the render context as `this.context`. */
-type FilterThis = { context: Record<string, unknown> }
+/** Nunjucks filter functions receive the render context as `this.ctx` (the
+ * compiled template calls filters as `env.getFilter(name).call(context, ...)`,
+ * where `context` is the runtime `Context` instance, and `Context` stores the
+ * plain object passed to `render()` on `.ctx`, not `.context`). */
+type FilterThis = { ctx: Record<string, unknown> }
 
 function createNunjucksEnvironment(): Environment {
   const env = new Environment(new FileSystemLoader(VIEWS_DIR), {
@@ -45,28 +48,28 @@ function createNunjucksEnvironment(): Environment {
     lstripBlocks: true,
   })
 
-  // Translation and formatting helpers as filters. `this.context` carries the
+  // Translation and formatting helpers as filters. `this.ctx` carries the
   // per-request translator + locale that the shell context builds.
   env.addFilter('translate', function (this: FilterThis, key: string): string {
-    return (this.context.t as Translator).translate(String(key))
+    return (this.ctx.t as Translator).translate(String(key))
   })
   env.addFilter('translateArray', function (this: FilterThis, key: string): string[] {
-    return (this.context.t as Translator).translateArray(String(key))
+    return (this.ctx.t as Translator).translateArray(String(key))
   })
   env.addFilter('intlNumber', function (this: FilterThis, value: number): string {
-    return formatNumber(Number(value), this.context.locale as SupportedLocale)
+    return formatNumber(Number(value), this.ctx.locale as SupportedLocale)
   })
   env.addFilter('intlPercent', function (this: FilterThis, value: number): string {
-    return formatPercent(Number(value), this.context.locale as SupportedLocale)
+    return formatPercent(Number(value), this.ctx.locale as SupportedLocale)
   })
   env.addFilter('intlDate', function (this: FilterThis, value: Date | string): string {
-    return formatDate(new Date(value), this.context.locale as SupportedLocale)
+    return formatDate(new Date(value), this.ctx.locale as SupportedLocale)
   })
   env.addFilter('intlUtc', function (this: FilterThis, value: Date | string): string {
-    return formatUtc(new Date(value), this.context.locale as SupportedLocale)
+    return formatUtc(new Date(value), this.ctx.locale as SupportedLocale)
   })
   env.addFilter('intlUtcDateTime', function (this: FilterThis, value: Date | string): string {
-    return formatUtcDateTime(new Date(value), this.context.locale as SupportedLocale)
+    return formatUtcDateTime(new Date(value), this.ctx.locale as SupportedLocale)
   })
 
   return env

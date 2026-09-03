@@ -1,0 +1,48 @@
+{# Shared partials for the weather screen's result sections: provenance/cache/
+   sample-data badges and the per-indicator error state, reused across METAR,
+   TAF, NOTAM, and SIGMET sections so every result kind renders provenance the
+   same way.
+
+   `t` (the request translator) and any date already run through the
+   `intlUtcDateTime` filter are passed in explicitly rather than relied on
+   from the calling template's context: Nunjucks filters read the top-level
+   render context via `this.context`, which is not reliably available inside
+   a macro imported `with context` from a separate file, so formatting stays
+   in the caller and only the resulting strings cross the macro boundary. #}
+{% from 'partials/components.njk' import badge %}
+{% from 'partials/icons.njk' import icon %}
+
+{% macro provenanceLine(t, provider, timeLabel, timeFormatted, retrievedFormatted, cached, cacheAgeSeconds, sample) -%}
+<div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+  <span>{{ t.translate('weather.provider_label') }}: {{ provider }}</span>
+  <span aria-hidden="true">·</span>
+  <span>{{ timeLabel }}: {{ timeFormatted }}</span>
+  <span aria-hidden="true">·</span>
+  <span>{{ t.translate('weather.retrieved_label') }}: {{ retrievedFormatted }}</span>
+  {%- if cached %}
+  {{ badge(t.translate('weather.cached_label') + ' · ' + cacheAgeSeconds + 's', 'neutral') }}
+  {%- endif %}
+  {%- if sample %}
+  {{ badge(t.translate('weather.sample_caveat'), 'warn') }}
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{% macro errorBox(t, error) -%}
+<div class="flex items-start gap-2 text-sm text-red-300 bg-red-900/20 border border-red-700/40 rounded p-3" role="alert">
+  <span class="flex-shrink-0 mt-0.5">{{ icon('alert') }}</span>
+  <div>
+    <p class="font-medium">
+      {%- if error.kind === 'timeout' -%}{{ t.translate('weather.error_timeout') }}
+      {%- elif error.kind === 'rate_limit' -%}{{ t.translate('weather.error_rate_limit') }}
+      {%- elif error.kind === 'validation' -%}{{ t.translate('weather.error_validation') }}
+      {%- else -%}{{ t.translate('weather.error_provider') }}
+      {%- endif -%}
+      {%- if error.provider %} ({{ error.provider }}){% endif %}
+    </p>
+    {%- if error.kind === 'rate_limit' %}
+    <p class="text-xs text-red-300/80 mt-0.5">{{ t.translate('weather.retry_hint') }}{% if error.retryAfterSeconds %} ({{ error.retryAfterSeconds }}s){% endif %}</p>
+    {%- endif %}
+  </div>
+</div>
+{%- endmacro %}
