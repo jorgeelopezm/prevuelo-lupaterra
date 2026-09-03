@@ -18,6 +18,8 @@ import { createViewRenderer } from './views/views.js'
 import { registerModules, ALL_MODULES } from '../modules/registry.js'
 import type { FeatureModule } from '../modules/types.js'
 import { createEmbeddingProvider } from '../platform/retrieval/embeddings.js'
+import { createWeatherMcpClient } from '../platform/weather-mcp/create.js'
+import type { WeatherMcpClient } from '../platform/weather-mcp/types.js'
 import { staticAssetsPlugin } from './static.js'
 
 export interface BuildAppOptions {
@@ -46,6 +48,13 @@ export interface BuildAppOptions {
   modules?: readonly FeatureModule[]
   /** Additional Fastify plugins to compose (test-only seams, extensions). */
   plugins?: FastifyPluginAsync[]
+  /**
+   * Client for the aviation-weather MCP server. Tests inject a fake here to
+   * avoid spawning the real server; when omitted the app builds one from
+   * configuration. The connection itself is established lazily on first use,
+   * so building the default client here never spawns a process.
+   */
+  weatherMcp?: WeatherMcpClient
 }
 
 /**
@@ -71,6 +80,13 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   })
   logger.info({ embeddingProvider: opts.config.EMBEDDING_PROVIDER }, 'selected embedding provider')
   logger.info({ weatherProvider: opts.config.WEATHER_PROVIDER }, 'selected weather provider')
+  const weatherMcp =
+    opts.weatherMcp ??
+    createWeatherMcpClient({
+      transport: opts.config.WEATHER_MCP_TRANSPORT,
+      url: opts.config.WEATHER_MCP_URL,
+      timeoutMs: opts.config.WEATHER_MCP_TIMEOUT_MS,
+    })
 
   const app = Fastify({
     loggerInstance: logger,
@@ -116,7 +132,11 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   })
 
   await app.register(viewsPlugin, { environment: opts.config.NODE_ENV, views })
-  await registerModules(app, { config: opts.config, pool, stores, views, embeddings }, modules)
+  await registerModules(
+    app,
+    { config: opts.config, pool, stores, views, embeddings, weatherMcp },
+    modules,
+  )
   await app.register(staticAssetsPlugin)
 
   await app.register(healthPlugin, {
@@ -129,6 +149,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
   app.addHook('onClose', async () => {
     if (!opts.pool) await pool.end()
+    if (!opts.weatherMcp) await weatherMcp.close()
   })
 
   return app

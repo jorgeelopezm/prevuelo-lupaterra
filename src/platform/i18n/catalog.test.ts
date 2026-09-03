@@ -11,8 +11,9 @@ test('catalogs were ported from the prototype with arrays decoded', () => {
   assert.equal(catalogs.pt['nav.home'], 'Início')
   assert.ok(Array.isArray(catalogs.en['risk.l_illness']), 'JSON arrays became real arrays')
   assert.equal((catalogs.es['risk.l_illness'] as string[]).length, 3)
-  // 136 ported keys + 35 application chrome keys (auth, shell, error, segments).
-  assert.equal(Object.keys(catalogs.en).length, 171)
+  // 136 ported keys + 30 weather-screen keys + 35 application chrome keys
+  // (auth, shell, error, segments).
+  assert.equal(Object.keys(catalogs.en).length, 201)
   assert.equal(catalogs.es['auth.sign_in_title'], 'Iniciar sesión')
 })
 

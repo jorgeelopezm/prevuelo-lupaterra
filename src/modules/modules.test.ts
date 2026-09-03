@@ -36,10 +36,14 @@ test('all six destinations return 200 inside the shell in all three locales', as
       assert.match(res.headers['content-type'] ?? '', /text\/html/)
       assert.ok(res.body.includes('<!doctype html>'), `${url} is a full document`)
       assert.ok(res.body.includes('<aside'), `${url} renders inside the shell`)
-      assert.ok(
-        res.body.includes(PLACEHOLDER_NOTICE[locale]),
-        `${url} shows the localized not-yet-available notice`,
-      )
+      // The weather module is no longer a placeholder (weather-notams-page
+      // capability); every other module still is.
+      if (mod.id !== 'weather') {
+        assert.ok(
+          res.body.includes(PLACEHOLDER_NOTICE[locale]),
+          `${url} shows the localized not-yet-available notice`,
+        )
+      }
       assert.equal(
         res.body.includes(`aria-current="page"`),
         true,
@@ -104,8 +108,11 @@ test('every placeholder response is free of operational values and prototype sam
     pool: new FakePoolFacade(),
     checkDatabase: async () => true,
   })
+  // The weather module is no longer a placeholder; its screen legitimately
+  // renders real MCP-sourced values once queried (covered by its own tests),
+  // so it is excluded from this placeholder-only check.
   for (const locale of SUPPORTED_LOCALES) {
-    for (const mod of ALL_MODULES) {
+    for (const mod of ALL_MODULES.filter((m) => m.id !== 'weather')) {
       const url = destinationPath(mod.id, locale)
       const body = (await app.inject({ method: 'GET', url })).body.toUpperCase()
       for (const forbidden of FORBIDDEN_VALUE_PATTERNS) {

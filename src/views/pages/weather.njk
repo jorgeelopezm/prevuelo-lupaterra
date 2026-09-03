@@ -1,0 +1,120 @@
+{# Weather & NOTAMs screen: an ICAO/FIR lookup form plus, once submitted,
+   METAR/TAF/NOTAM/SIGMET results sourced live from the aviation-weather MCP
+   server. Rendered fragment-only for htmx navigation, embedded in the shell
+   for full-page requests — same partial either way (ViewRenderer contract). #}
+{% from 'partials/components.njk' import pageHeader, card, emptyState, badge %}
+{% from 'partials/weather-results.njk' import provenanceLine, errorBox %}
+
+{{ pageHeader(title, subtitle) }}
+
+<form method="get" action="{{ currentPath }}" class="mb-6 space-y-3">
+  <div>
+    <label for="icao" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('weather.icao_label') }}</label>
+    <input type="text" id="icao" name="icao" value="{{ query.icaoInput }}"
+      placeholder="{{ t.translate('weather.icao_placeholder') }}"
+      class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data uppercase"
+      aria-describedby="icao-help">
+    <p id="icao-help" class="mt-1 text-[11px] text-slate-400">{{ t.translate('weather.icao_help') }}</p>
+    {%- for value in query.invalidIcaos %}
+    <p class="mt-1 text-[11px] text-red-300">{{ t.translate('weather.invalid_icao') }}: {{ value }}</p>
+    {%- endfor %}
+  </div>
+  <div>
+    <label for="fir" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('weather.fir_label') }}</label>
+    <input type="text" id="fir" name="fir" value="{{ query.firInput }}"
+      placeholder="{{ t.translate('weather.fir_placeholder') }}"
+      class="touch-target w-full sm:w-40 rounded border border-edge bg-surface px-3 text-sm text-white font-data uppercase">
+    {%- if query.invalidFir %}
+    <p class="mt-1 text-[11px] text-red-300">{{ t.translate('weather.invalid_fir') }}: {{ query.invalidFir }}</p>
+    {%- endif %}
+  </div>
+  <button type="submit" class="touch-target px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('weather.submit') }}</button>
+</form>
+
+{% if not viewModel %}
+  {% call card('p-4') %}
+    {{ emptyState(t.translate('weather.empty_hint'), '', 'cloud') }}
+  {% endcall %}
+{% else %}
+  <div class="space-y-4">
+    {%- for aerodrome in viewModel.aerodromes %}
+    {% call card('p-4') %}
+      <h2 class="text-sm font-bold text-white font-data mb-3">{{ aerodrome.icao }}</h2>
+
+      <section class="mb-4">
+        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1">{{ t.translate('weather.metar_label') }}</h3>
+        {%- if aerodrome.metar.status === 'error' %}
+          {{ errorBox(t, aerodrome.metar.error) }}
+        {%- elif aerodrome.metar.data.report %}
+          <pre class="font-data text-sm text-white bg-canvas/50 rounded p-2 whitespace-pre-wrap">{{ aerodrome.metar.data.report }}</pre>
+          {{ provenanceLine(t, aerodrome.metar.provenance.provider, t.translate('weather.observed_label'), aerodrome.metar.provenance.issuedAt | intlUtcDateTime, aerodrome.metar.provenance.retrievedAt | intlUtcDateTime, aerodrome.metar.provenance.cached, aerodrome.metar.provenance.cacheAgeSeconds, aerodrome.metar.provenance.sample) }}
+          {%- if aerodrome.decoded %}
+          <div class="mt-2">
+            <h4 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{{ t.translate('weather.decoded_label') }}</h4>
+            {%- if aerodrome.decoded.status === 'error' %}
+              {{ errorBox(t, aerodrome.decoded.error) }}
+            {%- else %}
+              <p class="text-sm text-slate-300">{{ aerodrome.decoded.data.explanation }}</p>
+            {%- endif %}
+          </div>
+          {%- endif %}
+        {%- else %}
+          <p class="text-sm text-slate-400">{{ t.translate('weather.no_data') }}</p>
+        {%- endif %}
+      </section>
+
+      <section class="mb-4">
+        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1">{{ t.translate('weather.taf_label') }}</h3>
+        {%- if aerodrome.taf.status === 'error' %}
+          {{ errorBox(t, aerodrome.taf.error) }}
+        {%- elif aerodrome.taf.data.report %}
+          <pre class="font-data text-sm text-white bg-canvas/50 rounded p-2 whitespace-pre-wrap">{{ aerodrome.taf.data.report }}</pre>
+          {{ provenanceLine(t, aerodrome.taf.provenance.provider, t.translate('weather.issued_label'), aerodrome.taf.provenance.issuedAt | intlUtcDateTime, aerodrome.taf.provenance.retrievedAt | intlUtcDateTime, aerodrome.taf.provenance.cached, aerodrome.taf.provenance.cacheAgeSeconds, aerodrome.taf.provenance.sample) }}
+        {%- else %}
+          <p class="text-sm text-slate-400">{{ t.translate('weather.no_data') }}</p>
+        {%- endif %}
+      </section>
+
+      <section>
+        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1">{{ t.translate('weather.notams_label') }}</h3>
+        {%- if aerodrome.notams.status === 'error' %}
+          {{ errorBox(t, aerodrome.notams.error) }}
+        {%- elif aerodrome.notams.data.notams.length === 0 %}
+          <p class="text-sm text-slate-400">{{ t.translate('weather.no_notams') }}</p>
+        {%- else %}
+          <ul class="space-y-2">
+            {%- for notam in aerodrome.notams.data.notams %}
+            <li class="text-sm text-slate-300">
+              {{ badge(notam.id, 'neutral') }}
+              <span class="ml-1">{{ notam.text }}</span>
+            </li>
+            {%- endfor %}
+          </ul>
+          {{ provenanceLine(t, aerodrome.notams.provenance.provider, t.translate('weather.issued_label'), aerodrome.notams.provenance.issuedAt | intlUtcDateTime, aerodrome.notams.provenance.retrievedAt | intlUtcDateTime, aerodrome.notams.provenance.cached, aerodrome.notams.provenance.cacheAgeSeconds, aerodrome.notams.provenance.sample) }}
+        {%- endif %}
+      </section>
+    {% endcall %}
+    {%- endfor %}
+
+    {%- if viewModel.firResult %}
+    {% call card('p-4') %}
+      <h2 class="text-sm font-bold text-white font-data mb-3">{{ t.translate('weather.sigmet_label') }} — {{ viewModel.firResult.fir }}</h2>
+      {%- if viewModel.firResult.sigmet.status === 'error' %}
+        {{ errorBox(t, viewModel.firResult.sigmet.error) }}
+      {%- elif viewModel.firResult.sigmet.data.sigmets.length === 0 %}
+        <p class="text-sm text-slate-400">{{ t.translate('weather.no_sigmets') }}</p>
+      {%- else %}
+        <ul class="space-y-2">
+          {%- for sigmet in viewModel.firResult.sigmet.data.sigmets %}
+          <li class="text-sm text-slate-300">
+            <p class="font-data text-xs text-slate-400">{{ sigmet.header }}</p>
+            <p>{{ sigmet.text }}</p>
+          </li>
+          {%- endfor %}
+        </ul>
+        {{ provenanceLine(t, viewModel.firResult.sigmet.provenance.provider, t.translate('weather.issued_label'), viewModel.firResult.sigmet.provenance.issuedAt | intlUtcDateTime, viewModel.firResult.sigmet.provenance.retrievedAt | intlUtcDateTime, viewModel.firResult.sigmet.provenance.cached, viewModel.firResult.sigmet.provenance.cacheAgeSeconds, viewModel.firResult.sigmet.provenance.sample) }}
+      {%- endif %}
+    {% endcall %}
+    {%- endif %}
+  </div>
+{% endif %}

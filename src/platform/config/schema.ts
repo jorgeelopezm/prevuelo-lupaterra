@@ -30,8 +30,12 @@ const embeddingDimensionsField = z.coerce.number().int().positive().default(768)
 const embeddingApiKeyField = z.string().optional()
 
 // Weather provider (MCP / weather seam).
-const weatherProviderField = z.enum(['mock', 'aemet', 'ipma', 'ead']).default('mock')
+const weatherProviderField = z.enum(['mock', 'aemet', 'ipma', 'ead', 'avwx']).default('mock')
 const aemetOpenDataApiKeyField = z.string().optional()
+const ipmaApiKeyField = z.string().optional()
+const eadApiKeyField = z.string().optional()
+/** AVWX bearer token (https://account.avwx.rest) — the only real provider implemented so far. */
+const avwxApiTokenField = z.string().optional()
 
 // MCP server transport and behavior.
 const mcpTransportField = z.enum(['stdio', 'http']).default('stdio')
@@ -39,6 +43,12 @@ const mcpPortField = z.coerce.number().int().min(1).max(65535).default(3001)
 const mcpCacheTtlSecondsField = z.coerce.number().int().nonnegative().default(60)
 const mcpRateLimitPerMinuteField = z.coerce.number().int().positive().default(30)
 const mcpProviderTimeoutMsField = z.coerce.number().int().positive().default(5000)
+
+// Web application's MCP *client* connection to the aviation-weather server
+// (distinct from MCP_TRANSPORT/MCP_PORT above, which configure the server).
+const weatherMcpTransportField = z.enum(['stdio', 'http']).default('stdio')
+const weatherMcpUrlField = z.string().url().optional()
+const weatherMcpTimeoutMsField = z.coerce.number().int().positive().default(8000)
 
 // Logging.
 const logLevelField = z
@@ -56,13 +66,37 @@ export function embeddingProviderRefine(data: Record<string, unknown>, ctx: z.Re
   }
 }
 
-/** A non-mock weather provider must carry its credential. */
+/** Credential variable each non-mock weather provider requires. */
+const WEATHER_PROVIDER_CREDENTIAL: Record<string, string> = {
+  aemet: 'AEMET_OPENDATA_API_KEY',
+  ipma: 'IPMA_API_KEY',
+  ead: 'EAD_API_KEY',
+  avwx: 'AVWX_API_TOKEN',
+}
+
+/** A non-mock weather provider must carry its own credential — not another provider's. */
 export function weatherProviderRefine(data: Record<string, unknown>, ctx: z.RefinementCtx): void {
-  if (data.WEATHER_PROVIDER !== 'mock' && !data.AEMET_OPENDATA_API_KEY) {
+  const provider = String(data.WEATHER_PROVIDER)
+  const credentialVar = WEATHER_PROVIDER_CREDENTIAL[provider]
+  if (credentialVar && !data[credentialVar]) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['WEATHER_PROVIDER'],
-      message: `WEATHER_PROVIDER '${String(data.WEATHER_PROVIDER)}' requires AEMET_OPENDATA_API_KEY to be set`,
+      message: `WEATHER_PROVIDER '${provider}' requires ${credentialVar} to be set`,
+    })
+  }
+}
+
+/** The `http` weather MCP client transport must carry the server's URL. */
+export function weatherMcpTransportRefine(
+  data: Record<string, unknown>,
+  ctx: z.RefinementCtx,
+): void {
+  if (data.WEATHER_MCP_TRANSPORT === 'http' && !data.WEATHER_MCP_URL) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['WEATHER_MCP_URL'],
+      message: "WEATHER_MCP_TRANSPORT 'http' requires WEATHER_MCP_URL to be set",
     })
   }
 }
@@ -84,15 +118,22 @@ export const configSchema = z
     EMBEDDING_API_KEY: embeddingApiKeyField,
     WEATHER_PROVIDER: weatherProviderField,
     AEMET_OPENDATA_API_KEY: aemetOpenDataApiKeyField,
+    IPMA_API_KEY: ipmaApiKeyField,
+    EAD_API_KEY: eadApiKeyField,
+    AVWX_API_TOKEN: avwxApiTokenField,
     MCP_TRANSPORT: mcpTransportField,
     MCP_PORT: mcpPortField,
     MCP_CACHE_TTL_SECONDS: mcpCacheTtlSecondsField,
     MCP_RATE_LIMIT_PER_MINUTE: mcpRateLimitPerMinuteField,
     MCP_PROVIDER_TIMEOUT_MS: mcpProviderTimeoutMsField,
+    WEATHER_MCP_TRANSPORT: weatherMcpTransportField,
+    WEATHER_MCP_URL: weatherMcpUrlField,
+    WEATHER_MCP_TIMEOUT_MS: weatherMcpTimeoutMsField,
     LOG_LEVEL: logLevelField,
   })
   .superRefine(embeddingProviderRefine)
   .superRefine(weatherProviderRefine)
+  .superRefine(weatherMcpTransportRefine)
 
 export type AppConfig = z.infer<typeof configSchema>
 
@@ -107,6 +148,9 @@ export const mcpConfigSchema = z
     HOST: hostField,
     WEATHER_PROVIDER: weatherProviderField,
     AEMET_OPENDATA_API_KEY: aemetOpenDataApiKeyField,
+    IPMA_API_KEY: ipmaApiKeyField,
+    EAD_API_KEY: eadApiKeyField,
+    AVWX_API_TOKEN: avwxApiTokenField,
     MCP_TRANSPORT: mcpTransportField,
     MCP_PORT: mcpPortField,
     MCP_CACHE_TTL_SECONDS: mcpCacheTtlSecondsField,
