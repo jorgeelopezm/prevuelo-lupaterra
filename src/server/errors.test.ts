@@ -3,6 +3,9 @@ import assert from 'node:assert/strict'
 
 import { buildApp } from './app.js'
 import { loadConfig } from './config.js'
+import { FakePoolFacade } from '../platform/db/fake-pool.js'
+import { PUBLIC_ROUTE } from './auth/auth-plugin.js'
+import { createTestSession } from './auth/test-session.js'
 
 function makeConfig(overrides: Record<string, string> = {}) {
   return loadConfig({
@@ -13,16 +16,37 @@ function makeConfig(overrides: Record<string, string> = {}) {
   })
 }
 
-test('unknown routes render a localized 404 inside the shell without leaking internals', async () => {
-  const app = await buildApp({ config: makeConfig(), checkDatabase: async () => true })
-  const res = await app.inject({ method: 'GET', url: '/es/this-route-does-not-exist' })
+test('unknown routes render a localized 404 inside the shell for a signed-in pilot without leaking internals', async () => {
+  const pool = new FakePoolFacade()
+  const app = await buildApp({ config: makeConfig(), pool, checkDatabase: async () => true })
+  const { cookie } = await createTestSession(pool)
+  const res = await app.inject({
+    method: 'GET',
+    url: '/es/this-route-does-not-exist',
+    headers: { cookie },
+  })
   assert.equal(res.statusCode, 404)
   assert.match(res.headers['content-type'] ?? '', /text\/html/)
   assert.ok(res.body.includes('Página no encontrada'))
-  assert.ok(res.body.includes('<html'), 'rendered inside the shell')
+  assert.ok(res.body.includes('<aside'), 'rendered inside the shell')
   assert.ok(!res.body.includes('Cannot GET'))
   assert.ok(!res.body.includes('node_modules'))
   assert.ok(!/at .*\.ts/.test(res.body), 'no file paths or stack frames')
+  await app.close()
+})
+
+test('an anonymous unknown path returns a 404 with no shell navigation or pilot data', async () => {
+  const app = await buildApp({
+    config: makeConfig(),
+    pool: new FakePoolFacade(),
+    checkDatabase: async () => true,
+  })
+  const res = await app.inject({ method: 'GET', url: '/es/this-route-does-not-exist' })
+  assert.equal(res.statusCode, 404, 'not redirected: the path matches no route')
+  assert.ok(res.body.includes('Página no encontrada'))
+  assert.ok(res.body.includes('<html'), 'a full document on the auth layout')
+  assert.ok(!res.body.includes('<aside'), 'no sidebar or drawer')
+  assert.ok(!res.body.includes('/es/aeronave'), 'no destination links')
   await app.close()
 })
 
@@ -41,7 +65,8 @@ test('a production 500 renders the localized page with the correlation id and no
     checkDatabase: async () => true,
     plugins: [
       async (instance) => {
-        instance.get('/:locale/boom', async () => {
+        // Public so the error page is exercised without a session.
+        instance.get('/:locale/boom', PUBLIC_ROUTE, async () => {
           throw new Error('boom: SELECT secret FROM pilots')
         })
       },
@@ -72,7 +97,8 @@ test('development mode may include the error message on a 500 page', async () =>
     checkDatabase: async () => true,
     plugins: [
       async (instance) => {
-        instance.get('/:locale/boom', async () => {
+        // Public so the error page is exercised without a session.
+        instance.get('/:locale/boom', PUBLIC_ROUTE, async () => {
           throw new Error('dev-only detail visible here')
         })
       },

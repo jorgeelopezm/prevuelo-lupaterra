@@ -122,3 +122,65 @@ test('an upstream error returns a structured provider error with no report text'
     return true
   })
 })
+
+/** A NOTAM-only upstream with its own id, optionally failing. */
+function notamUpstream(id: string, failWith: Error | null = null): WeatherProvider {
+  const mock = createMockWeatherProvider()
+  return {
+    ...mock,
+    id,
+    getNotams: async (icaos) => {
+      if (failWith) throw failWith
+      return { ...(await mock.getNotams(icaos)), provider: id }
+    },
+  }
+}
+
+function splitService(weather: WeatherProvider, notams: WeatherProvider, maxPerMinute = 1000) {
+  return new WeatherToolService({
+    provider: weather,
+    notamProvider: notams,
+    cache: new ResponseCache(60_000),
+    rateLimiter: new RateLimiter(maxPerMinute),
+    timeoutMs: 5000,
+  })
+}
+
+test('get_notams is served by the NOTAM provider, and its provenance names that provider', async () => {
+  const weather = new CountingProvider(createMockWeatherProvider())
+  const svc = splitService(weather, notamUpstream('avwx'))
+  const result = await svc.getNotams(['LEMD'])
+  assert.equal(result.provider, 'avwx')
+  assert.equal(weather.metarCalls, 0)
+})
+
+test('an exhausted NOTAM rate budget rejects get_notams while get_metar is still served', async () => {
+  const weather = new CountingProvider(createMockWeatherProvider())
+  const svc = splitService(weather, notamUpstream('avwx'), 1)
+  await svc.getNotams(['LEMD'])
+  await assert.rejects(svc.getNotams(['LEBL']), /rate limit/i)
+  const metar = await svc.getMetar(['LEMD'])
+  assert.ok(metar.entries[0]?.report, 'the weather upstream has its own budget')
+})
+
+test('a failing NOTAM upstream yields a ProviderError naming it, leaving METAR unaffected', async () => {
+  const weather = new CountingProvider(createMockWeatherProvider())
+  const svc = splitService(
+    weather,
+    notamUpstream('avwx', new Error('403 enterprise plan required')),
+  )
+  await assert.rejects(svc.getNotams(['LEMD']), (error: unknown) => {
+    assert.ok(error instanceof ProviderError)
+    assert.equal(error.provider, 'avwx')
+    return true
+  })
+  const metar = await svc.getMetar(['LEMD'])
+  assert.equal(metar.provider, 'mock')
+  assert.equal(weather.metarCalls, 1)
+})
+
+test('without a separate NOTAM provider, NOTAMs come from the weather provider as before', async () => {
+  const svc = service(createMockWeatherProvider())
+  const result = await svc.getNotams(['LEMD'])
+  assert.equal(result.provider, 'mock')
+})

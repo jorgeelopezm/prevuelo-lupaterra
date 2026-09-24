@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": false,
+    "rootDir": "../..",
+    "outDir": "../../dist/mcp"
+  },
+  "include": ["src/**/*.ts", "../../src/server/logger.ts", "../../src/platform/config/schema.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

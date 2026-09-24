@@ -30,9 +30,13 @@ export const viewsPlugin: FastifyPluginCallback<ViewsPluginOptions> = fp<ViewsPl
   async (app, opts) => {
     app.decorate('views', opts.views)
 
+    // An anonymous visitor's error pages use the shell-less auth layout, so an
+    // unknown path or a failing public route reveals no navigation behind the
+    // wall.
     app.setNotFoundHandler(async (req, reply) => {
       const t = createTranslator({ locale: req.locale })
       const html = app.views.render(req, {
+        layout: req.isAuthenticated ? 'shell' : 'auth',
         fragment: 'error/404.njk',
         locals: {
           title: t.translate('error.not_found_title'),
@@ -55,6 +59,7 @@ export const viewsPlugin: FastifyPluginCallback<ViewsPluginOptions> = fp<ViewsPl
           ? t.translate('error.server_message')
           : `${t.translate('error.server_message')} ${err instanceof Error ? err.message : ''}`
       const html = app.views.render(req, {
+        layout: req.isAuthenticated ? 'shell' : 'auth',
         fragment: 'error/500.njk',
         locals: {
           title: t.translate('error.server_title'),

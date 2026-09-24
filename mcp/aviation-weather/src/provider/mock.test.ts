@@ -78,3 +78,26 @@ test('an unknown aerodrome yields a per-indicator no-data entry, not a failure',
   const sigmet = await provider.getSigmet(['XXXX'])
   assert.deepEqual(sigmet.entries[0]?.sigmets, [], 'unknown FIR has no SIGMETs')
 })
+
+test('mock seeded aerodromes report complete NOTAM coverage, including a seeded empty list', async () => {
+  const notams = await provider.getNotams(['LEMD', 'LPPT'])
+  assert.equal(notams.entries[0]?.coverage, 'complete')
+  assert.deepEqual(notams.entries[1]?.notams, [], 'LPPT is seeded with no NOTAMs')
+  assert.equal(
+    notams.entries[1]?.coverage,
+    'complete',
+    'a seeded empty list is a confirmed "none in force"',
+  )
+})
+
+test('mock unseeded aerodrome reports an empty list with unknown coverage, not "none in force"', async () => {
+  const notams = await provider.getNotams(['SUMU'])
+  assert.deepEqual(notams.entries[0]?.notams, [])
+  assert.equal(notams.entries[0]?.coverage, 'unknown')
+})
+
+test('mock seeded FIR reports complete SIGMET coverage; an unseeded FIR reports unknown', async () => {
+  const sigmet = await provider.getSigmet(['LECM', 'XXXX'])
+  assert.equal(sigmet.entries[0]?.coverage, 'complete')
+  assert.equal(sigmet.entries[1]?.coverage, 'unknown')
+})

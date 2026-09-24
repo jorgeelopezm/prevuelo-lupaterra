@@ -2,7 +2,7 @@
  * Live end-to-end integration tests guarded by TEST_DATABASE_URL. These boot
  * the real server against a real PostgreSQL with pgvector — migrations applied,
  * a pilot seeded, then every one of the six feature destinations walked in all
- * three locales, both signed out and signed in:
+ * three locales: redirected to sign-in when signed out, rendered when signed in:
  *   TEST_DATABASE_URL=postgres://ga:ga@localhost:5432/ga_core_test npm test
  * They are skipped unless an operator explicitly targets a test database.
  */
@@ -82,7 +82,7 @@ async function signIn(app: FastifyInstance): Promise<string> {
   return `ga_session=${session}`
 }
 
-it('walks all six destinations in all three locales signed out', async () => {
+it('redirects all six destinations in all three locales to sign-in when signed out', async () => {
   const pool = await prepareDatabase()
   const app = await buildApp({ config: makeConfig(), pool, checkDatabase: async () => true })
   try {
@@ -90,10 +90,13 @@ it('walks all six destinations in all three locales signed out', async () => {
       for (const mod of ALL_MODULES) {
         const url = destinationPath(mod.id, locale)
         const res = await app.inject({ method: 'GET', url })
-        assert.equal(res.statusCode, 200, `${url} resolves against the real database`)
-        assert.match(res.headers['content-type'] ?? '', /text\/html/)
-        assert.ok(res.body.includes('<!doctype html>'), `${url} is a full document`)
-        assert.ok(res.body.includes('<aside'), `${url} renders inside the shell`)
+        assert.equal(res.statusCode, 302, `${url} is behind the wall`)
+        assert.equal(
+          res.headers.location,
+          `/${locale}/auth/sign-in?next=${encodeURIComponent(url)}`,
+          `${url} redirects to sign-in with itself as the return target`,
+        )
+        assert.ok(!res.body.includes('<aside'), `${url} renders no shell`)
       }
     }
   } finally {
@@ -143,8 +146,10 @@ it('signs out: the prior session cookie is rejected afterwards', async () => {
       payload: formBody({ csrfToken: csrf }),
     })
     assert.equal(out.statusCode, 302)
+    assert.equal(out.headers.location, '/es/auth/sign-in', 'sign-out lands on sign-in')
 
     const after = await app.inject({ method: 'GET', url: '/es', headers: { cookie: res } })
+    assert.equal(after.statusCode, 302, 'the locale root redirects once signed out')
     assert.ok(
       !after.body.includes(E2E_DISPLAY_NAME),
       'the destroyed session no longer authenticates',

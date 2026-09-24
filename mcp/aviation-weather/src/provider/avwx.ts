@@ -25,7 +25,8 @@ export interface AvwxProviderOptions {
 
 interface AvwxTimeValue {
   repr: string
-  dt: string
+  /** Null when AVWX has only a non-date marker (e.g. `PERM`). */
+  dt: string | null
 }
 
 interface AvwxReport {
@@ -58,7 +59,7 @@ interface AvwxAirSigmetResponse {
 }
 
 /** AVWX results are real (not sample) data and carry no cache state of their own — `WeatherToolService`'s cache layer is what marks `cached`. */
-function provenance(issuedAt: string): WeatherProvenance {
+function provenance(issuedAt: string | null): WeatherProvenance {
   return {
     provider: 'avwx',
     issuedAt,
@@ -130,13 +131,17 @@ export class AvwxWeatherProvider implements WeatherProvider {
         const notams: NotamEntry[] = (res.data ?? []).map((n) => ({
           id: n.number,
           text: n.body ?? n.raw,
-          startAt: n.start_time?.dt ?? new Date().toISOString(),
-          endAt: n.end_time?.dt ?? new Date().toISOString(),
+          // Unstated validity stays null — never substituted with "now".
+          startAt: n.start_time?.dt ?? null,
+          endAt: n.end_time?.dt ?? null,
         }))
-        return { icao, notams }
+        // AVWX does not vouch for complete NOTAM coverage of any region, so an
+        // empty list must not read as "none in force".
+        return { icao, notams, coverage: 'unknown' as const }
       }),
     )
-    return { ...provenance(new Date().toISOString()), entries }
+    // The NOTAM fields read here carry no issue time; none is substituted.
+    return { ...provenance(null), entries }
   }
 
   /**
@@ -145,9 +150,9 @@ export class AvwxWeatherProvider implements WeatherProvider {
    * conventionally lead their raw text with the issuing FIR's ICAO code
    * (matching this project's own mock fixtures), so entries are filtered by
    * a word-boundary match of the requested FIR against each advisory's raw
-   * text. This is a best-effort match, not a guaranteed-correct FIR lookup:
-   * no match found renders identically to "genuinely none in force" — never
-   * fabricated content either way.
+   * text. This is a best-effort match, not a guaranteed-correct FIR lookup,
+   * so every report is marked `unknown` coverage: an empty match renders as
+   * "none returned", never as "none in force", and no content is fabricated.
    */
   async getSigmet(firs: readonly string[]): Promise<SigmetResult> {
     const res = await this.fetchJson<AvwxAirSigmetResponse>('/airsigmet?format=json&onfail=error')
@@ -159,12 +164,21 @@ export class AvwxWeatherProvider implements WeatherProvider {
         .map((r) => ({
           header: r.raw.split('\n')[0] ?? r.raw,
           text: r.raw,
-          startAt: r.start_time?.dt ?? r.time?.dt ?? new Date().toISOString(),
-          endAt: r.end_time?.dt ?? new Date().toISOString(),
+          // The issue time is not a start of validity; unstated stays null.
+          startAt: r.start_time?.dt ?? null,
+          endAt: r.end_time?.dt ?? null,
         }))
-      return { fir, sigmets }
+      // Best-effort FIR text match (above) — never asserted complete.
+      return { fir, sigmets, coverage: 'unknown' as const }
     })
-    return { ...provenance(new Date().toISOString()), entries }
+    // Latest issue time among the matched advisories; null when none matched.
+    const matched = new Set(entries.flatMap((e) => e.sigmets.map((sg) => sg.text)))
+    const issued = reports
+      .filter((r) => matched.has(r.raw))
+      .map((r) => r.time?.dt ?? null)
+      .filter((dt): dt is string => dt !== null)
+      .sort((a, b) => Date.parse(b) - Date.parse(a))
+    return { ...provenance(issued[0] ?? null), entries }
   }
 
   /**
@@ -174,10 +188,7 @@ export class AvwxWeatherProvider implements WeatherProvider {
    * Any other non-2xx status (auth, plan, rate limit, upstream failure) still
    * throws.
    */
-  private async fetchStation(
-    report: 'metar' | 'taf',
-    icao: string,
-  ): Promise<AvwxReport | null> {
+  private async fetchStation(report: 'metar' | 'taf', icao: string): Promise<AvwxReport | null> {
     try {
       return await this.fetchJson<AvwxReport>(`/${report}/${icao}?format=json&onfail=error`)
     } catch (error) {
@@ -232,6 +243,16 @@ async function describeError(response: Response, path: string): Promise<string> 
   }
 }
 
-function latestIssuedAt(reports: ReadonlyArray<AvwxReport | null>): string {
-  return reports.find((r): r is AvwxReport => r !== null)?.time.dt ?? new Date().toISOString()
+/**
+ * The latest issue/observation time across a batch's reports, or `null` when
+ * no station returned a timed report. Never the current time: a result with
+ * no report has no issue time to state.
+ */
+function latestIssuedAt(reports: ReadonlyArray<AvwxReport | null>): string | null {
+  let latest: string | null = null
+  for (const report of reports) {
+    const dt = report?.time.dt
+    if (dt && (latest === null || Date.parse(dt) > Date.parse(latest))) latest = dt
+  }
+  return latest
 }

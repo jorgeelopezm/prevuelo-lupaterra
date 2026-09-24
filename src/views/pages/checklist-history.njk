@@ -1,0 +1,33 @@
+{# Per-aircraft completed-run history (checklist-runs: "Completed runs are
+   kept and browsable per aircraft"). Read-only: no control here would
+   modify a completed run. #}
+{% from 'partials/components.njk' import pageHeader, card, emptyState %}
+
+{{ pageHeader(title, aircraftRegistration) }}
+
+{% if runs.length === 0 %}
+  {% call card('p-4') %}
+  {{ emptyState(t.translate('checklist.history_empty'), '', 'list') }}
+  {% endcall %}
+{% else %}
+  <div class="space-y-3">
+    {%- for run in runs %}
+    {% call card('p-4 flex items-center justify-between gap-4') %}
+      <div>
+        <div class="text-sm text-white font-semibold">{{ run.checklistName }}</div>
+        {%- if run.flightIntent %}
+        <div class="text-xs text-slate-400 font-data">{{ run.flightIntent.departureIcao }} &rarr; {{ run.flightIntent.destinationIcao }} &middot; {{ run.flightIntent.plannedDate }}</div>
+        {%- endif %}
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-500 font-data">{{ run.completedAt | intlUtcDateTime }}</span>
+        <a href="{{ run.href }}" class="touch-target inline-flex items-center px-3 rounded border border-edge text-xs text-slate-300 whitespace-nowrap">{{ t.translate('btn.open') }}</a>
+      </div>
+    {% endcall %}
+    {%- endfor %}
+  </div>
+{% endif %}
+
+<div class="mt-4">
+  <a href="{{ backHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">&larr; {{ t.translate('checklist.back_to_selector') }}</a>
+</div>

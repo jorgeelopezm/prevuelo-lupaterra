@@ -2,6 +2,8 @@ import fp from 'fastify-plugin'
 
 import type { FastifyPluginCallback, FastifyRequest } from 'fastify'
 
+import { PUBLIC_ROUTE } from './auth/auth-plugin.js'
+
 import {
   firstPathSegment,
   isSupportedLocale,
@@ -41,7 +43,8 @@ export const localeRoutingPlugin: FastifyPluginCallback<LocaleRoutingOptions> =
           })
     })
 
-    app.get('/', async (req, reply) => {
+    // Public: it only redirects, and the locale root it targets is walled.
+    app.get('/', PUBLIC_ROUTE, async (req, reply) => {
       const storedLocale = (await opts?.resolveStoredLocale?.(req)) ?? null
       const locale = resolveLocale({
         storedLocale,

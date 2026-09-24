@@ -1,0 +1,353 @@
+{# Aircraft & Logbook screen (aircraft-fleet capability): the pilot's own
+   aircraft, selectable by a chip row, with the selected aircraft's identity
+   panel. Rendered fragment-only for htmx navigation, embedded in the shell for
+   full-page requests — same partial either way (ViewRenderer contract). #}
+{% from 'partials/components.njk' import pageHeader, card, emptyState, badge %}
+
+{{ pageHeader(title) }}
+
+{% if aircraftList.length === 0 %}
+  {% call card('p-6') %}
+    {{ emptyState(t.translate('fleet.empty_title'), t.translate('fleet.empty_message'), 'plane') }}
+    <div class="mt-4 text-center">
+      <a href="{{ newHref }}" class="touch-target inline-flex items-center px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('fleet.add_aircraft') }}</a>
+    </div>
+  {% endcall %}
+{% else %}
+  <div class="flex gap-2 mb-6 overflow-x-auto pb-1" role="tablist" aria-label="{{ t.translate('fleet.aircraft_selector') }}">
+    {%- for a in aircraftList %}
+    <a href="{{ basePath }}?aircraft={{ a.id }}"
+      class="touch-target inline-flex items-center px-4 rounded border text-sm whitespace-nowrap {% if selected and selected.id === a.id %}bg-blue-600/20 border-blue-600/50 text-blue-300{% else %}border-edge text-slate-400{% endif %}">
+      <span class="font-data font-bold">{{ a.registration }}</span>
+      <span class="text-slate-500 text-xs ml-1">— {{ a.model }}</span>
+      {%- if a.retired %} {{ badge(t.translate('fleet.retired'), 'warn') }}{% endif %}
+      {%- if activeAircraftId === a.id %} {{ badge(t.translate('fleet.active'), 'neutral') }}{% endif %}
+    </a>
+    {%- endfor %}
+    <a href="{{ newHref }}" class="touch-target inline-flex items-center px-4 rounded border border-dashed border-edge text-sm text-slate-400 whitespace-nowrap">+ {{ t.translate('fleet.add_aircraft') }}</a>
+  </div>
+
+  {% if selected %}
+  {% call card('p-4 mb-4') %}
+    <div class="flex items-start justify-between gap-3 flex-wrap">
+      <div>
+        <h2 class="text-lg font-bold text-white font-data">{{ selected.registration }}</h2>
+        <p class="text-sm text-slate-400">{{ selected.manufacturer }} {{ selected.model }} ({{ selected.icaoType }})</p>
+        {%- if selected.nickname %}<p class="text-xs text-slate-500 mt-0.5">"{{ selected.nickname }}"</p>{% endif %}
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <a href="{{ selected.editHref }}" class="touch-target inline-flex items-center px-3 rounded border border-edge text-xs text-slate-300">{{ t.translate('fleet.edit') }}</a>
+        {%- if not selected.retired %}
+          {%- if activeAircraftId !== selected.id %}
+          <form method="post" action="{{ selected.activateHref }}">
+            <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+            <button type="submit" class="touch-target inline-flex items-center px-3 rounded border border-edge text-xs text-slate-300">{{ t.translate('fleet.set_active') }}</button>
+          </form>
+          {%- endif %}
+          <a href="{{ selected.retireHref }}" class="touch-target inline-flex items-center px-3 rounded border border-edge text-xs text-red-300">{{ t.translate('fleet.retire') }}</a>
+        {%- endif %}
+      </div>
+    </div>
+
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 text-sm">
+      {%- if selected.serialNumber %}
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.serial_number') }}</dt><dd class="text-slate-200 font-data">{{ selected.serialNumber }}</dd></div>
+      {%- endif %}
+      {%- if selected.classCategory %}
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.class_category') }}</dt><dd class="text-slate-200">{{ selected.classCategory }}</dd></div>
+      {%- endif %}
+      {%- if selected.engine %}
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.engine') }}</dt><dd class="text-slate-200">{{ selected.engine }}</dd></div>
+      {%- endif %}
+      {%- if selected.propeller %}
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.propeller') }}</dt><dd class="text-slate-200">{{ selected.propeller }}</dd></div>
+      {%- endif %}
+      {%- if selected.yearOfManufacture %}
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.year') }}</dt><dd class="text-slate-200 font-data">{{ selected.yearOfManufacture }}</dd></div>
+      {%- endif %}
+      {%- if selected.homeBase %}
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.home_base') }}</dt><dd class="text-slate-200 font-data">{{ selected.homeBase }}</dd></div>
+      {%- endif %}
+    </dl>
+  {% endcall %}
+
+  {# Airworthiness / document validity panel. Status is derived at render
+     time from expiresOn (documentStatus) — never stored. #}
+  {% call card('p-4 mb-4') %}
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">{{ t.translate('fleet.documents_title') }}</h3>
+    </div>
+    {%- if documentError %}
+    <p class="text-[11px] text-red-300 mb-3">{{ documentError }}</p>
+    {%- endif %}
+    {%- if documents.length === 0 %}
+    <p class="text-sm text-slate-400 mb-3">{{ t.translate('fleet.documents_empty') }}</p>
+    {%- else %}
+    <ul class="space-y-2 mb-3">
+      {%- for doc in documents %}
+      <li class="flex items-center justify-between gap-3 text-sm border-b border-edge/50 pb-2 last:border-0">
+        <div>
+          <span class="text-slate-200">{{ t.translate('fleet.doc_kind.' + doc.kind) }}</span>
+          {%- if doc.reference %}<span class="text-slate-500 text-xs ml-1">({{ doc.reference }})</span>{% endif %}
+        </div>
+        <div class="text-right">
+          {%- if doc.status !== 'none' %}
+          {{ badge(t.translate('fleet.doc_status.' + doc.status), 'warn' if doc.status !== 'ok' else 'neutral') }}
+          {%- if doc.expiresOn %}<div class="text-[10px] text-slate-500 font-data mt-0.5">{{ doc.expiresOn }}
+            {%- if doc.daysRemaining >= 0 %} · {{ doc.daysRemaining }} {{ t.translate('fleet.doc_days_remaining') }}{% else %} · {{ -doc.daysRemaining }} {{ t.translate('fleet.doc_days_overdue') }}{% endif -%}
+          </div>{% endif %}
+          {%- endif %}
+        </div>
+      </li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+    <p class="text-[11px] text-slate-500 mb-3">{{ t.translate('fleet.documents_caveat') }}</p>
+
+    {%- if addDocumentHref %}
+    <form method="post" action="{{ addDocumentHref }}" class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+      <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+      <div class="sm:col-span-2">
+        <label for="kind" class="block text-[11px] text-slate-400 mb-1">{{ t.translate('fleet.doc_kind') }}</label>
+        <select id="kind" name="kind" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white">
+          {%- for k in ['certificate_of_airworthiness','arc','registration_certificate','insurance','radio_licence','noise_certificate','mass_and_balance','elt_registration','other'] %}
+          <option value="{{ k }}">{{ t.translate('fleet.doc_kind.' + k) }}</option>
+          {%- endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="issuedOn" class="block text-[11px] text-slate-400 mb-1">{{ t.translate('fleet.doc_issued_on') }}</label>
+        <input type="date" id="issuedOn" name="issuedOn" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white font-data">
+      </div>
+      <div>
+        <label for="expiresOn" class="block text-[11px] text-slate-400 mb-1">{{ t.translate('fleet.doc_expires_on') }}</label>
+        <input type="date" id="expiresOn" name="expiresOn" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white font-data">
+      </div>
+      <div class="sm:col-span-4">
+        <label for="reference" class="block text-[11px] text-slate-400 mb-1">{{ t.translate('fleet.doc_reference') }}</label>
+        <input type="text" id="reference" name="reference" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white">
+      </div>
+      <div class="sm:col-span-4">
+        <button type="submit" class="touch-target px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('fleet.add_document') }}</button>
+      </div>
+    </form>
+    {%- endif %}
+  {% endcall %}
+
+  {# Weight & balance panel. #}
+  {% call card('p-4 mb-4') %}
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">{{ t.translate('fleet.wb_title') }}</h3>
+      {%- if wbHref %}<a href="{{ wbHref }}" class="touch-target inline-flex items-center text-xs text-slate-300">{{ t.translate('fleet.edit') }}</a>{% endif %}
+    </div>
+    {%- if not wbProfile or not wbProfile.hasProfile %}
+    {{ emptyState(t.translate('fleet.wb_empty_title'), t.translate('fleet.wb_empty_message'), 'plane') }}
+    {%- if wbHref %}
+    <div class="text-center">
+      <a href="{{ wbHref }}" class="touch-target inline-flex items-center px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('fleet.wb_add_profile') }}</a>
+    </div>
+    {%- endif %}
+    {%- else %}
+    <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.wb_empty_weight') }}</dt><dd class="text-slate-200 font-data">{{ wbProfile.emptyWeight }} {{ wbProfile.massUnit }}</dd></div>
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.wb_empty_weight_arm') }}</dt><dd class="text-slate-200 font-data">{{ wbProfile.emptyWeightArm }} {{ wbProfile.lengthUnit }}</dd></div>
+      {%- if wbProfile.mtow %}<div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.wb_mtow') }}</dt><dd class="text-slate-200 font-data">{{ wbProfile.mtow }} {{ wbProfile.massUnit }}</dd></div>{% endif %}
+      {%- if wbProfile.usableFuelQty %}<div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.wb_usable_fuel_qty') }}</dt><dd class="text-slate-200 font-data">{{ wbProfile.usableFuelQty }} {{ wbProfile.massUnit }}</dd></div>{% endif %}
+    </dl>
+    {%- if wbProfile.loadStations.length > 0 %}
+    <div class="mt-3">
+      <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{{ t.translate('fleet.wb_load_stations') }}</p>
+      <ul class="text-sm text-slate-300 space-y-0.5">
+        {%- for s in wbProfile.loadStations %}
+        <li class="font-data">{{ s.name }} — {{ t.translate('fleet.wb_station_arm') }} {{ s.arm }} {{ wbProfile.lengthUnit }}{% if s.maxWeight %}, {{ t.translate('fleet.wb_station_max_weight') }} {{ s.maxWeight }} {{ wbProfile.massUnit }}{% endif %}</li>
+        {%- endfor %}
+      </ul>
+    </div>
+    {%- endif %}
+    {%- endif %}
+  {% endcall %}
+
+  {# Derived aircraft totals — computed from opening offsets + logged flights,
+     never stored (flight-logbook spec: "Aircraft hour totals are derived
+     from logged flights"). #}
+  {% call card('p-4 mb-4') %}
+    <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-3">{{ t.translate('fleet.aircraft_totals_title') }}</h3>
+    {%- if not aircraftTotals or not aircraftTotals.computable %}
+    <p class="text-sm text-slate-400">{{ t.translate('fleet.hours_not_computable') }}</p>
+    {%- else %}
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.opening_airframe_hours') }}</dt><dd class="text-slate-200 font-data">{{ aircraftTotals.airframeHours }}</dd></div>
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.opening_tach_hours') }}</dt><dd class="text-slate-200 font-data">{{ aircraftTotals.tachHours }}</dd></div>
+      <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.opening_landings') }}</dt><dd class="text-slate-200 font-data">{{ aircraftTotals.landings }}</dd></div>
+    </dl>
+    {%- endif %}
+  {% endcall %}
+
+  {# Maintenance tracking — a pilot-maintained record, never an airworthiness
+     verdict (maintenance-tracking spec: "Maintenance panel is advisory"). #}
+  {% call card('p-4 mb-4') %}
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">{{ t.translate('fleet.maintenance_title') }}</h3>
+      {%- if addMaintenanceHref %}
+      <a href="{{ addMaintenanceHref }}" class="touch-target inline-flex items-center px-3 rounded bg-accent text-white text-xs font-semibold">{{ t.translate('fleet.add_maintenance_item') }}</a>
+      {%- endif %}
+    </div>
+    {%- if maintenanceItems.length === 0 %}
+    <p class="text-sm text-slate-400 mb-3">{{ t.translate('fleet.maintenance_empty') }}</p>
+    {%- else %}
+    <ul class="space-y-2.5 mb-3">
+      {%- for m in maintenanceItems %}
+      <li class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full {% if m.status === 'overdue' %}bg-red-400{% elif m.status === 'due_soon' %}bg-amber-400{% else %}bg-emerald-400{% endif %}"></span>
+          <span class="text-xs text-slate-300">{{ m.description }}</span>
+          {{ badge(t.translate('fleet.mx_status.' + m.status), 'critical' if m.status === 'overdue' else ('warn' if m.status === 'due_soon' else 'neutral')) }}
+        </div>
+        <div class="text-right">
+          {%- if m.dueOn %}<div class="text-xs font-data text-slate-400">{{ m.dueOn }}</div>{% endif %}
+          {%- if m.dueAtHours %}
+            {%- if m.hoursComputable %}
+            <div class="text-[10px] text-slate-500 font-data">{{ m.hoursRemaining }} h</div>
+            {%- else %}
+            <div class="text-[10px] text-slate-500">{{ t.translate('fleet.mx_hours_not_computable') }}</div>
+            {%- endif %}
+          {%- endif %}
+          <a href="{{ m.completeHref }}" class="text-[10px] text-slate-400 underline">{{ t.translate('fleet.mx_complete') }}</a>
+        </div>
+      </li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+    <p class="text-[11px] text-slate-500">{{ t.translate('fleet.maintenance_caveat') }}</p>
+  {% endcall %}
+
+  {# Engine trend strip — renders only from a real imported file (engine-data-
+     import spec: "No engine value is displayed without an imported file
+     behind it"). No sample/placeholder value exists in any code path here. #}
+  {% call card('p-4 mb-4') %}
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">{{ t.translate('fleet.engine_title') }}</h3>
+      {%- if engineLimitsHref %}<a href="{{ engineLimitsHref }}" class="touch-target inline-flex items-center text-xs text-slate-300">{{ t.translate('fleet.engine_limits_title') }}</a>{% endif %}
+    </div>
+    {%- if engineDataError %}<p class="text-[11px] text-red-300 mb-3">{{ engineDataError }}</p>{% endif %}
+
+    {%- if not hasLastFlight %}
+    <p class="text-sm text-slate-400">{{ t.translate('fleet.engine_no_flights') }}</p>
+    {%- elif not engineData %}
+    <p class="text-sm text-slate-400 mb-3">{{ t.translate('fleet.engine_no_data') }}</p>
+    {%- if engineUploadHref %}
+    <form method="post" action="{{ engineUploadHref }}" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+      <input type="file" name="file" accept=".csv" class="touch-target text-xs text-slate-300">
+      <button type="submit" class="touch-target px-3 rounded bg-accent text-white text-xs font-semibold">{{ t.translate('fleet.engine_import') }}</button>
+    </form>
+    {%- endif %}
+    {%- else %}
+    <p class="text-[11px] text-slate-500 mb-1">{{ t.translate('fleet.engine_imported_caveat') }}</p>
+    <p class="text-[11px] text-slate-500 mb-3">{{ engineData.originalFilename }} · {{ engineData.detectedFormat }} · {{ engineData.importedAt | intlUtcDateTime }}</p>
+    <div class="space-y-2 mb-3">
+      {%- for c in engineData.channels %}
+      <div class="flex items-center gap-3">
+        <span class="text-[10px] font-data text-slate-500 w-16">{{ c.label }}</span>
+        <span class="text-xs font-data text-slate-300 flex-1">{{ c.last }} {{ c.unit }} <span class="text-slate-600">({{ c.min }}–{{ c.max }})</span></span>
+        {%- if c.limit %}
+        <span class="text-[10px] text-amber-400 font-data">{{ t.translate('fleet.engine_limit_label') }}: {{ c.limit }} {{ c.unit }}</span>
+        {%- endif %}
+      </div>
+      {%- endfor %}
+    </div>
+    {%- if engineData.ignoredColumns.length > 0 %}
+    <p class="text-[11px] text-slate-500 mb-2">{{ t.translate('fleet.engine_ignored_columns') }}: {{ engineData.ignoredColumns | join(', ') }}</p>
+    {%- endif %}
+    <div class="flex gap-2">
+      <form method="post" action="{{ engineUploadHref }}" enctype="multipart/form-data" class="flex items-center gap-2">
+        <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+        <input type="file" name="file" accept=".csv" class="touch-target text-xs text-slate-300">
+        <button type="submit" class="touch-target px-3 rounded border border-edge text-slate-300 text-xs">{{ t.translate('fleet.engine_replace') }}</button>
+      </form>
+      <form method="post" action="{{ engineDeleteHref }}">
+        <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+        <button type="submit" class="touch-target px-3 rounded border border-edge text-red-300 text-xs">{{ t.translate('fleet.delete') }}</button>
+      </form>
+    </div>
+    {%- endif %}
+  {% endcall %}
+
+  {# Logbook listing. #}
+  {% call card('p-4 mb-4') %}
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide">{{ t.translate('fleet.logbook_title') }}</h3>
+      <div class="flex gap-2">
+        {%- if newFlightHref %}
+        <a href="{{ newFlightHref }}" class="touch-target inline-flex items-center px-3 rounded bg-accent text-white text-xs font-semibold">{{ t.translate('fleet.log_flight') }}</a>
+        {%- endif %}
+        <a href="{{ newFstdHref }}" class="touch-target inline-flex items-center px-3 rounded border border-edge text-slate-300 text-xs font-semibold">{{ t.translate('fleet.log_fstd') }}</a>
+      </div>
+    </div>
+    {%- if entries.length === 0 %}
+    {{ emptyState(t.translate('fleet.logbook_empty_title'), t.translate('fleet.logbook_empty_message'), 'book') }}
+    {%- else %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="text-slate-600 border-b border-edge text-left">
+            <th class="py-1.5 font-medium">{{ t.translate('fleet.col_date') }}</th>
+            <th class="py-1.5 font-medium">{{ t.translate('fleet.col_route') }}</th>
+            <th class="py-1.5 font-medium text-right">{{ t.translate('fleet.col_total') }}</th>
+            <th class="py-1.5 font-medium">{{ t.translate('fleet.col_function') }}</th>
+            <th class="py-1.5 font-medium"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {%- for e in entries %}
+          <tr class="border-b border-edge/50">
+            <td class="py-2 text-slate-400 font-data">{{ e.flightDate }}</td>
+            <td class="py-2 text-slate-300 font-data">
+              {%- if e.kind === 'fstd' %}{{ t.translate('fleet.entry_type_fstd') }} — {{ e.deviceType }}{% else %}{{ e.departureAerodrome }} → {{ e.arrivalAerodrome }}{% endif -%}
+            </td>
+            <td class="py-2 text-right font-data text-slate-300">{{ e.totalHours }}</td>
+            <td class="py-2 text-slate-400">{{ t.translate('fleet.function.' + e.pilotFunction) }}</td>
+            <td class="py-2 text-right whitespace-nowrap">
+              <a href="{{ e.editHref }}" class="touch-target inline-flex items-center px-2 text-slate-400">{{ t.translate('fleet.edit') }}</a>
+              <a href="{{ e.deleteHref }}" class="touch-target inline-flex items-center px-2 text-red-300">{{ t.translate('fleet.delete') }}</a>
+            </td>
+          </tr>
+          {%- endfor %}
+        </tbody>
+      </table>
+    </div>
+    {%- if pageCount > 1 %}
+    <div class="flex gap-2 mt-3">
+      {%- for p in range(1, pageCount + 1) %}
+      <a href="{{ pageHrefBase }}{{ p }}" class="touch-target inline-flex items-center px-2 text-xs {% if p === page %}text-white font-bold{% else %}text-slate-400{% endif %}">{{ p }}</a>
+      {%- endfor %}
+    </div>
+    {%- endif %}
+    {%- endif %}
+  {% endcall %}
+  {% endif %}
+{% endif %}
+
+{# Pilot totals & recent experience — a count, never a legal-currency verdict
+   (flight-logbook spec: "Recency is a count, not a currency verdict"). #}
+{% call card('p-4') %}
+  <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-3">{{ t.translate('fleet.pilot_totals_title') }}</h3>
+  {%- if not pilotTotals.hasEntries %}
+  <p class="text-sm text-slate-400">{{ t.translate('fleet.no_flights_logged') }}</p>
+  {%- else %}
+  <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+    <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.totals_total') }}</dt><dd class="text-slate-200 font-data">{{ pilotTotals.totalHours }}</dd></div>
+    <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.function.pic') }}</dt><dd class="text-slate-200 font-data">{{ pilotTotals.picHours }}</dd></div>
+    <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.function.dual') }}</dt><dd class="text-slate-200 font-data">{{ pilotTotals.dualHours }}</dd></div>
+    <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.totals_night') }}</dt><dd class="text-slate-200 font-data">{{ pilotTotals.nightHours }}</dd></div>
+    <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.totals_ifr') }}</dt><dd class="text-slate-200 font-data">{{ pilotTotals.ifrHours }}</dd></div>
+    <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.totals_landings') }}</dt><dd class="text-slate-200 font-data">{{ pilotTotals.totalLandings }}</dd></div>
+    <div><dt class="text-[10px] text-slate-500 uppercase tracking-widest">{{ t.translate('fleet.totals_fstd') }}</dt><dd class="text-slate-200 font-data">{{ pilotTotals.fstdHours }}</dd></div>
+  </dl>
+  <div class="border-t border-edge pt-3">
+    <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{{ t.translate('fleet.recent_experience_title') }}</p>
+    <p class="text-sm text-slate-300">{{ t.translate('fleet.recent_landings_90d') }}: <span class="font-data">{{ pilotTotals.recentLandings90d }}</span> ({{ t.translate('fleet.recent_night_landings_90d') }}: <span class="font-data">{{ pilotTotals.recentNightLandings90d }}</span>)</p>
+    <p class="text-[11px] text-slate-500 mt-1">{{ t.translate('fleet.recency_caveat') }}</p>
+  </div>
+  {%- endif %}
+{% endcall %}

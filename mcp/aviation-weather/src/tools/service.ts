@@ -12,7 +12,10 @@ import type {
 import type { RateLimiter } from '../rate-limit.js'
 
 export interface ToolServiceDeps {
+  /** Serves METAR, TAF, and SIGMET. */
   provider: WeatherProvider
+  /** Serves NOTAMs; defaults to `provider`. A distinct upstream gets its own rate budget and error naming. */
+  notamProvider?: WeatherProvider
   cache: ResponseCache
   rateLimiter: RateLimiter
   /** Upper bound per provider request; exceeded requests return a timeout error. */
@@ -51,31 +54,41 @@ export class ProviderError extends Error {
  */
 export class WeatherToolService {
   private readonly provider: WeatherProvider
+  private readonly notamProvider: WeatherProvider
   private readonly cache: ResponseCache
   private readonly rateLimiter: RateLimiter
   private readonly timeoutMs: number
 
   constructor(deps: ToolServiceDeps) {
     this.provider = deps.provider
+    this.notamProvider = deps.notamProvider ?? deps.provider
     this.cache = deps.cache
     this.rateLimiter = deps.rateLimiter
     this.timeoutMs = deps.timeoutMs
   }
 
   getMetar(icaos: readonly string[]): Promise<MetarResult> {
-    return this.cachedFetch(`get_metar:${icaos.join(',')}`, () => this.provider.getMetar(icaos))
+    return this.cachedFetch(this.provider, `get_metar:${icaos.join(',')}`, () =>
+      this.provider.getMetar(icaos),
+    )
   }
 
   getTaf(icaos: readonly string[]): Promise<TafResult> {
-    return this.cachedFetch(`get_taf:${icaos.join(',')}`, () => this.provider.getTaf(icaos))
+    return this.cachedFetch(this.provider, `get_taf:${icaos.join(',')}`, () =>
+      this.provider.getTaf(icaos),
+    )
   }
 
   getNotams(icaos: readonly string[]): Promise<NotamResult> {
-    return this.cachedFetch(`get_notams:${icaos.join(',')}`, () => this.provider.getNotams(icaos))
+    return this.cachedFetch(this.notamProvider, `get_notams:${icaos.join(',')}`, () =>
+      this.notamProvider.getNotams(icaos),
+    )
   }
 
   getSigmet(firs: readonly string[]): Promise<SigmetResult> {
-    return this.cachedFetch(`get_sigmet:${firs.join(',')}`, () => this.provider.getSigmet(firs))
+    return this.cachedFetch(this.provider, `get_sigmet:${firs.join(',')}`, () =>
+      this.provider.getSigmet(firs),
+    )
   }
 
   /** Decoding is a pure function over the caller's report; no provider involved. */
@@ -83,23 +96,26 @@ export class WeatherToolService {
     return decodeMetar(raw, locale)
   }
 
+  /** Rate ceiling, cache, and error naming all belong to the upstream that serves the call. */
   private async cachedFetch<T extends WeatherProvenance>(
+    upstream: WeatherProvider,
     key: string,
     fetch: () => Promise<T>,
   ): Promise<T> {
-    this.rateLimiter.acquire(this.provider.id)
-    const hit = this.cache.get<T>(key)
+    this.rateLimiter.acquire(upstream.id)
+    const cacheKey = `${upstream.id}:${key}`
+    const hit = this.cache.get<T>(cacheKey)
     if (hit) return { ...hit.value, cached: true, cacheAgeSeconds: hit.ageSeconds }
-    const fresh = await this.withTimeout(() => fetch())
-    this.cache.set(key, fresh)
+    const fresh = await this.withTimeout(upstream.id, () => fetch())
+    this.cache.set(cacheKey, fresh)
     return fresh
   }
 
-  private async withTimeout<T>(work: () => Promise<T>): Promise<T> {
+  private async withTimeout<T>(providerId: string, work: () => Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new ProviderTimeoutError(this.provider.id, this.timeoutMs)),
+        () => reject(new ProviderTimeoutError(providerId, this.timeoutMs)),
         this.timeoutMs,
       )
     })
@@ -107,10 +123,7 @@ export class WeatherToolService {
       return await Promise.race([work(), timeout])
     } catch (error) {
       if (error instanceof ProviderTimeoutError) throw error
-      throw new ProviderError(
-        this.provider.id,
-        error instanceof Error ? error.message : String(error),
-      )
+      throw new ProviderError(providerId, error instanceof Error ? error.message : String(error))
     } finally {
       if (timer) clearTimeout(timer)
     }

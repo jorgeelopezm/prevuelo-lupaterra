@@ -1,0 +1,46 @@
+{# Home screen's weather tile summary + NOTAM attention band (design decision
+   2): the fragment target for the home page's htmx `hx-get`, and directly
+   requestable on its own (task 3.4). Renders provenance through the
+   *existing* `provenanceLine`/`errorBox` macros — no new provenance markup
+   is authored here (design risk mitigation). #}
+{% from 'partials/components.njk' import card, badge %}
+{% from 'partials/weather-results.njk' import provenanceLine, errorBox, validityLine, emptyListState, briefingLink %}
+
+<div id="home-weather-region">
+{% call card('p-4') %}
+  {%- if result.status === 'no_aerodrome' %}
+  <p class="text-sm text-slate-400">{{ t.translate('home.no_aerodrome_selected') }}</p>
+  {%- else %}
+  <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-2">{{ t.translate('weather.metar_label') }} — {{ result.data.icao }}</h3>
+  {%- if result.data.metar.status === 'error' %}
+    {{ errorBox(t, result.data.metar.error) }}
+  {%- elif result.data.metar.data.report %}
+    <pre class="font-data text-sm text-white bg-canvas/50 rounded p-2 whitespace-pre-wrap">{{ result.data.metar.data.report }}</pre>
+    {{ provenanceLine(t, result.data.metar.provenance.provider, t.translate('weather.observed_label'), (result.data.metar.provenance.issuedAt | intlUtcDateTime) if result.data.metar.provenance.issuedAt else t.translate('weather.validity_not_stated'), result.data.metar.provenance.retrievedAt | intlUtcDateTime, result.data.metar.provenance.cached, result.data.metar.provenance.cacheAgeSeconds, result.data.metar.provenance.sample) }}
+  {%- else %}
+    <p class="text-sm text-slate-400">{{ t.translate('weather.no_data') }}</p>
+  {%- endif %}
+
+  <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mt-4 mb-2">{{ t.translate('home.notam_band_heading') }}</h3>
+  {%- if result.data.notams.status === 'error' %}
+    {{ errorBox(t, result.data.notams.error) }}
+  {%- else %}
+    {%- if result.data.notams.data.notams.length === 0 %}
+    {{ emptyListState(t, result.data.notams.data.confirmedEmpty, 'weather.no_notams', 'weather.notams_unconfirmed_empty') }}
+    {%- else %}
+    <ul class="space-y-2">
+      {%- for notam in result.data.notams.data.notams %}
+      <li class="text-sm text-slate-300">{{ badge(notam.id, 'neutral') }}<span class="ml-1">{{ notam.text }}</span>
+        {{ validityLine(t, (notam.startAt | intlUtcDateTime) if notam.startAt else null, (notam.endAt | intlUtcDateTime) if notam.endAt else null) }}
+      </li>
+      {%- endfor %}
+    </ul>
+    {%- endif %}
+    {{ provenanceLine(t, result.data.notams.provenance.provider, t.translate('weather.issued_label'), (result.data.notams.provenance.issuedAt | intlUtcDateTime) if result.data.notams.provenance.issuedAt else t.translate('weather.validity_not_stated'), result.data.notams.provenance.retrievedAt | intlUtcDateTime, result.data.notams.provenance.cached, result.data.notams.provenance.cacheAgeSeconds, result.data.notams.provenance.sample) }}
+    {{ briefingLink(t, result.data.notams.data.briefing) }}
+  {%- endif %}
+
+  <a href="{{ result.data.weatherHref }}" class="touch-target inline-flex items-center mt-3 text-xs text-slate-300 underline">{{ t.translate('weather.title') }}</a>
+  {%- endif %}
+{% endcall %}
+</div>

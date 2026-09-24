@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { ConfigError, loadConfig } from './config.js'
+import { ConfigError, loadConfig, resolveNotamProvider } from './config.js'
 
 test('mock is the default provider with no credentials and startup succeeds', () => {
   const config = loadConfig({})
@@ -59,9 +59,45 @@ test('avwx with its token parses successfully', () => {
   assert.equal(config.AVWX_API_TOKEN, 'avwx-token')
 })
 
+test('awc with a mock NOTAM provider parses, and the NOTAM provider resolves to it', () => {
+  const config = loadConfig({ WEATHER_PROVIDER: 'awc', NOTAM_PROVIDER: 'mock' })
+  assert.equal(config.WEATHER_PROVIDER, 'awc')
+  assert.equal(resolveNotamProvider(config), 'mock')
+})
+
+test('awc without a NOTAM provider aborts naming NOTAM_PROVIDER — no silent sample NOTAMs', () => {
+  assert.throws(
+    () => loadConfig({ WEATHER_PROVIDER: 'awc' }),
+    (error: unknown) => error instanceof ConfigError && /NOTAM_PROVIDER/.test(error.message),
+  )
+})
+
+test('an unset NOTAM provider defaults to a NOTAM-capable weather provider', () => {
+  assert.equal(resolveNotamProvider(loadConfig({})), 'mock')
+  assert.equal(
+    resolveNotamProvider(loadConfig({ WEATHER_PROVIDER: 'avwx', AVWX_API_TOKEN: 't' })),
+    'avwx',
+  )
+})
+
 test('malformed MCP_PORT names the variable and its constraint', () => {
   assert.throws(
     () => loadConfig({ MCP_PORT: 'not-a-number' }),
     (error: unknown) => error instanceof ConfigError && error.message.includes('MCP_PORT'),
   )
+})
+
+test('PORT is used when MCP_PORT is not set, for a platform runtime service', () => {
+  const config = loadConfig({ PORT: '19042' })
+  assert.equal(config.MCP_PORT, 19042)
+})
+
+test('an explicit MCP_PORT always wins over PORT', () => {
+  const config = loadConfig({ PORT: '19042', MCP_PORT: '4000' })
+  assert.equal(config.MCP_PORT, 4000)
+})
+
+test('with neither PORT nor MCP_PORT set, the schema default applies', () => {
+  const config = loadConfig({})
+  assert.equal(config.MCP_PORT, 3001)
 })

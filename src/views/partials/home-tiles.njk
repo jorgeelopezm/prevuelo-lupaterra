@@ -1,0 +1,22 @@
+{# One code path for the home screen's four status tiles (design decision 5):
+   a `null` status/unavailableKey pair renders a value, a set `unavailableKey`
+   renders the tile's not-available text instead — never both, never
+   neither. #}
+{% from 'partials/components.njk' import statusChip %}
+
+{% macro tile(t, tileView) -%}
+<a href="{{ tileView.href }}" class="touch-target block p-4 bg-surface border border-edge rounded-lg">
+  <div class="flex items-center justify-between gap-2 mb-1">
+    <span class="text-xs font-semibold text-slate-300">{{ t.translate(tileView.labelKey) }}</span>
+    {%- if tileView.status %}{{ statusChip(t.translate(tileView.status.labelKey), tileView.status.tone) }}{% endif %}
+  </div>
+  {%- if tileView.unavailableKey %}
+  <p class="text-xs text-slate-400">{{ t.translate(tileView.unavailableKey) }}</p>
+  {%- else %}
+  <p class="text-sm text-white font-data">
+    {{ tileView.detail }}{% if tileView.detailKey %} {{ t.translate(tileView.detailKey) }}{% endif %}
+  </p>
+  {%- if tileView.sub %}<p class="text-xs text-slate-400 mt-0.5">{{ tileView.sub }}</p>{% endif %}
+  {%- endif %}
+</a>
+{%- endmacro %}

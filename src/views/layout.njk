@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
   <link rel="stylesheet" href="/assets/app.css">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <script src="/assets/htmx.min.js" defer></script>
 </head>
 <body class="bg-canvas text-slate-200 min-h-screen flex flex-col lg:flex-row">
@@ -21,14 +22,18 @@
   <label for="drawer-toggle" class="fixed inset-0 z-30 bg-black/70 hidden peer-checked:block lg:hidden" aria-hidden="true"></label>
   <aside id="drawer" class="fixed top-0 left-0 z-40 h-full w-72 max-w-[85vw] bg-sidebar border-r border-edge flex flex-col -translate-x-full peer-checked:translate-x-0 transition-transform duration-200 lg:hidden" aria-label="{{ shell.t.translate('shell.drawer') }}">
     <div class="px-4 py-4 border-b border-edge flex items-center justify-between">
-      <span class="text-sm font-bold text-white tracking-wide">PREFLIGHT</span>
+      <span class="text-sm font-bold text-white tracking-wide">PRE-VUELO</span>
       <label for="drawer-toggle" class="touch-target rounded text-slate-400">{{ shell.t.translate('shell.close_menu') }}</label>
     </div>
-    <div class="mx-3 mt-3 mb-1 px-3 py-2 rounded bg-surface border border-edge">
+    <a href="{{ shell.aircraftHref }}" class="touch-target block mx-3 mt-3 mb-1 px-3 py-2 rounded bg-surface border border-edge">
       <div class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">{{ shell.t.translate('nav.active_ac') }}</div>
+      {%- if shell.activeAircraftRegistration %}
+      <div class="text-sm font-semibold text-white font-data">{{ shell.activeAircraftRegistration }}</div>
+      {%- else %}
       <div class="text-sm font-semibold text-white font-data">—</div>
       <div class="text-[11px] text-slate-400">{{ shell.t.translate('shell.no_aircraft') }}</div>
-    </div>
+      {%- endif %}
+    </a>
     {{ navList(destinations, shell.t.translate('nav.main')) }}
     {{ shellFooter(shell) }}
   </aside>
@@ -41,16 +46,20 @@
           {{ icon('plane') }}
         </div>
         <div>
-          <div class="text-sm font-bold text-white tracking-wide">PREFLIGHT</div>
+          <div class="text-sm font-bold text-white tracking-wide">PRE-VUELO</div>
           <div class="text-[10px] text-slate-400 font-data tracking-widest">RISK MGMT</div>
         </div>
       </div>
     </div>
-    <div class="mx-3 mt-3 mb-1 px-3 py-2 rounded bg-surface border border-edge">
+    <a href="{{ shell.aircraftHref }}" class="touch-target block mx-3 mt-3 mb-1 px-3 py-2 rounded bg-surface border border-edge">
       <div class="text-[10px] text-slate-400 uppercase tracking-widest mb-0.5">{{ shell.t.translate('nav.active_ac') }}</div>
+      {%- if shell.activeAircraftRegistration %}
+      <div class="text-sm font-semibold text-white font-data">{{ shell.activeAircraftRegistration }}</div>
+      {%- else %}
       <div class="text-sm font-semibold text-white font-data">—</div>
       <div class="text-[11px] text-slate-400">{{ shell.t.translate('shell.no_aircraft') }}</div>
-    </div>
+      {%- endif %}
+    </a>
     {{ navList(destinations, shell.t.translate('nav.main')) }}
     {{ shellFooter(shell) }}
   </aside>
@@ -63,8 +72,10 @@
         <span class="block h-0.5 w-5 bg-current rounded mt-1"></span>
         <span class="block h-0.5 w-5 bg-current rounded mt-1"></span>
       </label>
-      <span class="text-sm font-bold text-white tracking-wide">PREFLIGHT</span>
-      <span class="ml-auto text-xs font-data text-slate-400">—</span>
+      <span class="text-sm font-bold text-white tracking-wide">PRE-VUELO</span>
+      <a href="{{ shell.aircraftHref }}" class="touch-target ml-auto flex items-center text-xs font-data text-slate-400" aria-label="{{ shell.t.translate('nav.active_ac') }}">
+        {%- if shell.activeAircraftRegistration %}{{ shell.activeAircraftRegistration }}{% else %}{{ shell.t.translate('shell.no_aircraft') }}{% endif -%}
+      </a>
     </header>
 
     <main id="main" class="flex-1 min-w-0 px-4 py-6 lg:p-8">

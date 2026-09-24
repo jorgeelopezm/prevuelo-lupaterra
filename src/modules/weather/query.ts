@@ -35,7 +35,10 @@ export function parseWeatherQuery(query: Record<string, unknown>): WeatherQuery 
   const seen = new Set<string>()
   const icaos: string[] = []
   const invalidIcaos: string[] = []
-  for (const raw of icaoInput.split(/[\s,]+/).map((v) => v.trim().toUpperCase()).filter(Boolean)) {
+  for (const raw of icaoInput
+    .split(/[\s,]+/)
+    .map((v) => v.trim().toUpperCase())
+    .filter(Boolean)) {
     if (!ICAO_PATTERN.test(raw)) {
       invalidIcaos.push(raw)
       continue

@@ -11,9 +11,28 @@ test('catalogs were ported from the prototype with arrays decoded', () => {
   assert.equal(catalogs.pt['nav.home'], 'Início')
   assert.ok(Array.isArray(catalogs.en['risk.l_illness']), 'JSON arrays became real arrays')
   assert.equal((catalogs.es['risk.l_illness'] as string[]).length, 3)
-  // 136 ported keys + 30 weather-screen keys + 35 application chrome keys
-  // (auth, shell, error, segments).
-  assert.equal(Object.keys(catalogs.en).length, 201)
+  // 136 ported keys + 30 weather-screen keys + 213 fleet-screen keys
+  // (aircraft records, documents, weight & balance, flight logbook,
+  // maintenance tracking, engine data import — the full aircraft-fleet
+  // capability group) + 48 application chrome keys (auth, shell, error,
+  // nav/fleet segments, the dashboard's weather-summary sub-segment)
+  // + 47 risk-assessment/flight-intent screen keys + 5 risk sub-segment
+  // chrome keys + 40 home-screen keys (home-dashboard capability, replacing
+  // the 13 prototype-sample `dash.*` keys removed by the inicio-page change)
+  // + 41 checklist.* label/message/error keys (listas-verificacion-page,
+  // replacing the 6 prototype-sample `cl.*` keys the port carried over,
+  // `cl.items`'s JSON blob of sample item text included) + 11
+  // `checklist.segment.*` chrome keys + 4 `home.tile_checklists_*` unavailable
+  // reasons for the now-real Checklists tile + 4 NOTAM/SIGMET coverage and
+  // validity keys (`weather.{notams,sigmets}_unconfirmed_empty`,
+  // `weather.validity_label`, `weather.validity_not_stated` —
+  // notam-sigmet-no-fabrication) + 2 official-briefing link labels
+  // (`weather.briefing_link_{enaire,nav_portugal}` — awc-weather-provider)
+  // + 5 auth-screen chrome keys (sign-in subtitle, password hint,
+  // registration-unavailable title/message, back-to-sign-in) − 3 signed-out
+  // welcome keys (`home.welcome_{title,message}`, `home.sign_in_cta`) removed
+  // with the anonymous home state (login-wall).
+  assert.equal(Object.keys(catalogs.en).length, 556)
   assert.equal(catalogs.es['auth.sign_in_title'], 'Iniciar sesión')
 })
 
@@ -28,9 +47,9 @@ test('falls back to the en catalog when the requested locale misses, logging a w
     locale: 'pt',
     onFallback: (key, locale) => warnings.push([key, locale]),
   })
-  // 'dash.title' exists in all catalogs; force a miss by using a fabricated key
-  // that only exists in en by checking a real en-only key difference is not
-  // available — so inject a known missing key in pt.
+  // 'nav.language' exists in all catalogs; force a miss by using a fabricated
+  // key that only exists in en by checking a real en-only key difference is
+  // not available — so inject a known missing key in pt.
   const value = t.translate('nav.language')
   assert.equal(typeof value, 'string')
   assert.equal(value.length > 0, true)

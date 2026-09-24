@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Asset build: compiles the Tailwind v4 stylesheet and copies the htmx runtime
- * into `dist/assets`. Run before serving (npm run assets:build); dev serves
+ * and the favicon into `dist/assets`. Run before serving (npm run assets:build); dev serves
  * the same built files, so a rebuild is only needed after template/theme edits.
  */
 import { copyFileSync, mkdirSync } from 'node:fs'
@@ -23,4 +23,8 @@ copyFileSync(
   fileURLToPath(new URL('node_modules/htmx.org/dist/htmx.min.js', rootUrl)),
   fileURLToPath(new URL('dist/assets/htmx.min.js', rootUrl)),
 )
-console.log('assets built → dist/assets/{app.css,htmx.min.js}')
+copyFileSync(
+  fileURLToPath(new URL('src/assets/favicon.svg', rootUrl)),
+  fileURLToPath(new URL('dist/assets/favicon.svg', rootUrl)),
+)
+console.log('assets built → dist/assets/{app.css,htmx.min.js,favicon.svg}')

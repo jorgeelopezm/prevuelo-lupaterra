@@ -12,6 +12,7 @@ import { createDatabaseHealthProbe } from '../platform/dbHealth.js'
 import { healthPlugin } from './routes/health.js'
 import { localeRoutingPlugin } from './locale-routes.js'
 import { authPlugin } from './auth/auth-plugin.js'
+import { activeAircraftPlugin } from './active-aircraft-plugin.js'
 import { createSqlIdentityStores } from '../platform/identity/identity-service.js'
 import { viewsPlugin } from './views/plugin.js'
 import { createViewRenderer } from './views/views.js'
@@ -80,6 +81,10 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   })
   logger.info({ embeddingProvider: opts.config.EMBEDDING_PROVIDER }, 'selected embedding provider')
   logger.info({ weatherProvider: opts.config.WEATHER_PROVIDER }, 'selected weather provider')
+  logger.info(
+    { registrationEnabled: opts.config.REGISTRATION_ENABLED },
+    'public self-registration setting',
+  )
   const weatherMcp =
     opts.weatherMcp ??
     createWeatherMcpClient({
@@ -92,6 +97,13 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     loggerInstance: logger,
     genReqId: (req) => resolveCorrelationId(req.headers['x-correlation-id']),
     logController: new LogController({ disableRequestLogging: true }),
+    // Only the platform's own reverse proxy (Caddy, always 127.0.0.1 — D73)
+    // ever connects to this process; trusting X-Forwarded-For from any other
+    // peer would let a direct caller forge req.ip. Without this, req.ip is
+    // Caddy's loopback address for every request once routed, collapsing the
+    // auth rate limiter's per-source bucket onto one shared counter for every
+    // visitor (task 5.12b, mirrors the platformd clientSource finding, D58).
+    trustProxy: ['127.0.0.1', '::1'],
   }) as unknown as FastifyInstance
 
   // Echo the correlation id back to the caller on every response.
@@ -123,7 +135,10 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
       limit: opts.config.AUTH_MAX_FAILED_ATTEMPTS,
       windowMs: opts.config.AUTH_FAILURE_WINDOW_MINUTES * 60_000,
     },
+    registrationEnabled: opts.config.REGISTRATION_ENABLED,
   })
+
+  await app.register(activeAircraftPlugin, { pool })
 
   await app.register(localeRoutingPlugin, {
     resolveStoredLocale:

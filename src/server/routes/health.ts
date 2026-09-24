@@ -1,5 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 
+import { PUBLIC_ROUTE } from '../auth/auth-plugin.js'
+
 export interface HealthOptions {
   /** Resolves `true` when the database is reachable, `false` otherwise. */
   checkDatabase: () => Promise<boolean>
@@ -8,16 +10,16 @@ export interface HealthOptions {
 /**
  * Liveness and readiness endpoints. Liveness reports process health; readiness
  * reports dependency health and returns 503 naming the failing dependency when
- * the database is unreachable.
+ * the database is unreachable. Both are public: probes carry no session.
  */
 export const healthPlugin: FastifyPluginAsync<HealthOptions> = async (app, opts) => {
   const checkDatabase = opts?.checkDatabase ?? (async () => true)
 
-  app.get('/health/live', async () => {
+  app.get('/health/live', PUBLIC_ROUTE, async () => {
     return { status: 'ok' }
   })
 
-  app.get('/health/ready', async (_req, reply) => {
+  app.get('/health/ready', PUBLIC_ROUTE, async (_req, reply) => {
     const databaseUp = await runProbe(checkDatabase)
     const status = databaseUp ? 'ok' : 'error'
     void reply.code(databaseUp ? 200 : 503).send({

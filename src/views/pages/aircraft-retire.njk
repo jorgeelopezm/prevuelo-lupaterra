@@ -1,0 +1,19 @@
+{# Retirement confirmation (aircraft-fleet capability): retiring an aircraft
+   preserves its logbook history, but is confirmed before it takes effect. #}
+{% from 'partials/components.njk' import pageHeader, card %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-6 max-w-lg') %}
+  <p class="text-sm text-slate-300">{{ t.translate('fleet.retire_confirm_message') }}</p>
+  <p class="text-lg font-bold text-white font-data mt-2">{{ aircraft.registration }}</p>
+  <p class="text-xs text-slate-500 mt-1">{{ t.translate('fleet.retire_confirm_note') }}</p>
+
+  <div class="flex gap-3 mt-6">
+    <form method="post" action="{{ action }}">
+      <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+      <button type="submit" class="touch-target px-4 rounded bg-red-700 text-white text-sm font-semibold">{{ t.translate('fleet.retire_confirm') }}</button>
+    </form>
+    <a href="{{ cancelHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('fleet.cancel') }}</a>
+  </div>
+{% endcall %}

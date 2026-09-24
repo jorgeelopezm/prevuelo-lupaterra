@@ -28,6 +28,12 @@ export interface RenderOptions {
   fragment: string
   /** Route-specific locals (title, activeNav, page data, …). */
   locals?: Record<string, unknown>
+  /**
+   * Which document wraps the partial on a full-page response: the application
+   * shell (default), or the shell-less auth layout used by sign-in,
+   * registration, and anonymous error pages. Fragments are bare either way.
+   */
+  layout?: 'shell' | 'auth'
 }
 
 export interface ViewRenderer {
@@ -39,6 +45,18 @@ export interface ViewRenderer {
  * where `context` is the runtime `Context` instance, and `Context` stores the
  * plain object passed to `render()` on `.ctx`, not `.context`). */
 type FilterThis = { ctx: Record<string, unknown> }
+
+/**
+ * A missing time must never be formatted: `new Date(null)` is 1970-01-01, a
+ * fabricated value. Throwing makes a template that forgot its "not stated"
+ * branch fail its render test instead of printing a date nobody stated.
+ */
+export function requireFilterDate(value: Date | string | null | undefined, filter: string): Date {
+  if (value === null || value === undefined) {
+    throw new Error(`${filter}: refusing to format a missing time`)
+  }
+  return new Date(value)
+}
 
 function createNunjucksEnvironment(): Environment {
   const env = new Environment(new FileSystemLoader(VIEWS_DIR), {
@@ -68,9 +86,15 @@ function createNunjucksEnvironment(): Environment {
   env.addFilter('intlUtc', function (this: FilterThis, value: Date | string): string {
     return formatUtc(new Date(value), this.ctx.locale as SupportedLocale)
   })
-  env.addFilter('intlUtcDateTime', function (this: FilterThis, value: Date | string): string {
-    return formatUtcDateTime(new Date(value), this.ctx.locale as SupportedLocale)
-  })
+  env.addFilter(
+    'intlUtcDateTime',
+    function (this: FilterThis, value: Date | string | null | undefined): string {
+      return formatUtcDateTime(
+        requireFilterDate(value, 'intlUtcDateTime'),
+        this.ctx.locale as SupportedLocale,
+      )
+    },
+  )
 
   return env
 }
@@ -88,6 +112,12 @@ export interface ShellContext {
     pilot: PilotRecord | null
     pilotInitials: string
     switcherLinks: Array<{ code: string; href: string; active: boolean }>
+    /** The signed-in pilot's active-aircraft registration, or `null` when
+     * unauthenticated or none is designated (feature-scaffolding: "Shell
+     * header presents the pilot's active aircraft"). */
+    activeAircraftRegistration: string | null
+    /** Where the active-aircraft control links to. */
+    aircraftHref: string
   }
   isAuthenticated: boolean
   pilot: PilotRecord | null
@@ -140,6 +170,8 @@ export function createViewRenderer(modules: readonly FeatureModule[]): ViewRende
           pilot: req.pilot,
           pilotInitials,
           switcherLinks,
+          activeAircraftRegistration: req.activeAircraftRegistration ?? null,
+          aircraftHref: destinationPath('fleet', locale),
         },
         isAuthenticated: req.isAuthenticated,
         pilot: req.pilot,
@@ -168,7 +200,8 @@ export function createViewRenderer(modules: readonly FeatureModule[]): ViewRende
       const isFragment = req.headers['hx-request'] === 'true'
       const fragmentHtml = env.render(opts.fragment, context)
       if (isFragment) return fragmentHtml
-      return env.render('layout.njk', { ...context, content: fragmentHtml })
+      const layoutTemplate = opts.layout === 'auth' ? 'auth-layout.njk' : 'layout.njk'
+      return env.render(layoutTemplate, { ...context, content: fragmentHtml })
     },
   }
 }

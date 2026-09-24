@@ -1,0 +1,22 @@
+{# Pilot-entered per-channel engine limits (engine-data-import spec: "Limits
+   are shown only when the pilot has entered them" — never inferred). #}
+{% from 'partials/components.njk' import pageHeader, card %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-4 max-w-md') %}
+<form method="post" action="{{ action }}" class="space-y-4">
+  <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+  <p class="text-[11px] text-slate-500">{{ t.translate('fleet.engine_limits_help') }}</p>
+  {%- for ch in channels %}
+  <div>
+    <label for="{{ ch }}" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.engine_channel.' + ch) }}</label>
+    <input type="text" inputmode="decimal" id="{{ ch }}" name="{{ ch }}" value="{{ values[ch] }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+  </div>
+  {%- endfor %}
+  <div class="flex gap-3">
+    <button type="submit" class="touch-target px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('fleet.save') }}</button>
+    <a href="{{ cancelHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('fleet.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}

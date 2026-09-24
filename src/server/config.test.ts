@@ -103,7 +103,7 @@ test('WEATHER_MCP_TRANSPORT http with WEATHER_MCP_URL parses successfully', () =
   assert.equal(cfg.WEATHER_MCP_URL, 'http://localhost:3001/mcp')
 })
 
-test('avwx weather provider without its token aborts naming AVWX_API_TOKEN, not another provider\'s credential', () => {
+test("avwx weather provider without its token aborts naming AVWX_API_TOKEN, not another provider's credential", () => {
   const env = baseEnv({ WEATHER_PROVIDER: 'avwx' })
   assert.throws(
     () => loadConfig(env),
@@ -120,6 +120,31 @@ test('avwx weather provider with its token parses successfully', () => {
   assert.equal(cfg.AVWX_API_TOKEN, 'avwx-token')
 })
 
+test('awc weather provider with an avwx NOTAM provider parses with no weather credential', () => {
+  const cfg = loadConfig(
+    baseEnv({ WEATHER_PROVIDER: 'awc', NOTAM_PROVIDER: 'avwx', AVWX_API_TOKEN: 'avwx-token' }),
+  )
+  assert.equal(cfg.WEATHER_PROVIDER, 'awc')
+  assert.equal(cfg.NOTAM_PROVIDER, 'avwx')
+})
+
+test('awc weather provider without a NOTAM provider aborts naming NOTAM_PROVIDER', () => {
+  assert.throws(
+    () => loadConfig(baseEnv({ WEATHER_PROVIDER: 'awc' })),
+    (err) => err instanceof ConfigError && err.message.includes('NOTAM_PROVIDER'),
+  )
+})
+
+test('an avwx NOTAM provider without its token aborts naming AVWX_API_TOKEN', () => {
+  assert.throws(
+    () => loadConfig(baseEnv({ WEATHER_PROVIDER: 'awc', NOTAM_PROVIDER: 'avwx' })),
+    (err) =>
+      err instanceof ConfigError &&
+      err.message.includes('AVWX_API_TOKEN') &&
+      !err.message.includes('avwx-token'),
+  )
+})
+
 test('non-mock provider with its key set parses successfully', () => {
   const cfg = loadConfig(
     baseEnv({
@@ -131,4 +156,54 @@ test('non-mock provider with its key set parses successfully', () => {
   )
   assert.equal(cfg.EMBEDDING_PROVIDER, 'openai')
   assert.equal(cfg.WEATHER_PROVIDER, 'aemet')
+})
+
+test('fleet module warning windows and upload limit default correctly', () => {
+  const cfg = loadConfig(baseEnv())
+  assert.equal(cfg.DOCUMENT_WARNING_DAYS, 30)
+  assert.equal(cfg.MAINTENANCE_WARNING_DAYS, 30)
+  assert.equal(cfg.MAINTENANCE_WARNING_HOURS, 10)
+  assert.equal(cfg.ENGINE_DATA_MAX_BYTES, 8388608)
+})
+
+test('DOCUMENT_WARNING_DAYS rejects a non-positive value', () => {
+  const env = baseEnv({ DOCUMENT_WARNING_DAYS: '0' })
+  assert.throws(
+    () => loadConfig(env),
+    (err) => err instanceof ConfigError && err.message.includes('DOCUMENT_WARNING_DAYS'),
+  )
+})
+
+test('MAINTENANCE_WARNING_DAYS rejects a non-numeric value', () => {
+  const env = baseEnv({ MAINTENANCE_WARNING_DAYS: 'soon' })
+  assert.throws(
+    () => loadConfig(env),
+    (err) => err instanceof ConfigError && err.message.includes('MAINTENANCE_WARNING_DAYS'),
+  )
+})
+
+test('MAINTENANCE_WARNING_HOURS rejects a negative value', () => {
+  const env = baseEnv({ MAINTENANCE_WARNING_HOURS: '-1' })
+  assert.throws(
+    () => loadConfig(env),
+    (err) => err instanceof ConfigError && err.message.includes('MAINTENANCE_WARNING_HOURS'),
+  )
+})
+
+test('ENGINE_DATA_MAX_BYTES rejects a non-positive value', () => {
+  const env = baseEnv({ ENGINE_DATA_MAX_BYTES: '0' })
+  assert.throws(
+    () => loadConfig(env),
+    (err) => err instanceof ConfigError && err.message.includes('ENGINE_DATA_MAX_BYTES'),
+  )
+})
+
+test('REGISTRATION_ENABLED defaults to false and accepts only true/false', () => {
+  assert.equal(loadConfig(baseEnv()).REGISTRATION_ENABLED, false)
+  assert.equal(loadConfig(baseEnv({ REGISTRATION_ENABLED: 'false' })).REGISTRATION_ENABLED, false)
+  assert.equal(loadConfig(baseEnv({ REGISTRATION_ENABLED: 'true' })).REGISTRATION_ENABLED, true)
+  assert.throws(
+    () => loadConfig(baseEnv({ REGISTRATION_ENABLED: 'yes' })),
+    (err) => err instanceof ConfigError && err.message.includes('REGISTRATION_ENABLED'),
+  )
 })

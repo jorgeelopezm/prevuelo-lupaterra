@@ -9,6 +9,7 @@ import { ALL_MODULES } from './registry.js'
 import { destinationPath } from '../platform/i18n/segments.js'
 import { FakePoolFacade } from '../platform/db/fake-pool.js'
 import type { FeatureModule } from './types.js'
+import { createTestSession } from '../server/auth/test-session.js'
 
 function makeConfig() {
   return loadConfig({
@@ -18,13 +19,20 @@ function makeConfig() {
   })
 }
 
-async function makeApp(modules?: readonly FeatureModule[]): Promise<FastifyInstance> {
-  return buildApp({
+/** Builds the app and a signed-in pilot's cookie: every destination sits
+ * behind the wall, so reachability is checked as a signed-in pilot. */
+async function makeApp(
+  modules?: readonly FeatureModule[],
+): Promise<{ app: FastifyInstance; cookie: string }> {
+  const pool = new FakePoolFacade()
+  const app = await buildApp({
     config: makeConfig(),
-    pool: new FakePoolFacade(),
+    pool,
     checkDatabase: async () => true,
     ...(modules ? { modules } : {}),
   })
+  const { cookie } = await createTestSession(pool)
+  return { app, cookie }
 }
 
 test('each registration entry point is invoked exactly once and its routes are reachable', async () => {
@@ -40,7 +48,7 @@ test('each registration entry point is invoked exactly once and its routes are r
       void opts
     },
   })
-  const app = await makeApp([stubFor('dashboard', 1), stubFor('weather', 2)])
+  const { app, cookie } = await makeApp([stubFor('dashboard', 1), stubFor('weather', 2)])
 
   assert.deepEqual(
     invoked,
@@ -49,7 +57,7 @@ test('each registration entry point is invoked exactly once and its routes are r
   )
 
   for (const id of ['dashboard', 'weather'] as const) {
-    const res = await app.inject({ method: 'GET', url: `/es/__stub-${id}` })
+    const res = await app.inject({ method: 'GET', url: `/es/__stub-${id}`, headers: { cookie } })
     assert.equal(res.statusCode, 200, `route for ${id} is reachable`)
   }
   await app.close()
@@ -57,24 +65,37 @@ test('each registration entry point is invoked exactly once and its routes are r
 
 test('removing a module 404s its routes, leaves other modules intact, and drops its sidebar entry', async () => {
   const withoutWeather = ALL_MODULES.filter((m) => m.id !== 'weather')
-  const app = await makeApp(withoutWeather)
+  const { app, cookie } = await makeApp(withoutWeather)
 
   // The removed module's routes return 404 (no fallback).
-  const gone = await app.inject({ method: 'GET', url: destinationPath('weather', 'es') })
+  const gone = await app.inject({
+    method: 'GET',
+    url: destinationPath('weather', 'es'),
+    headers: { cookie },
+  })
   assert.equal(gone.statusCode, 404)
 
   // Other modules are unaffected.
   for (const mod of withoutWeather) {
-    const res = await app.inject({ method: 'GET', url: destinationPath(mod.id, 'es') })
+    const res = await app.inject({
+      method: 'GET',
+      url: destinationPath(mod.id, 'es'),
+      headers: { cookie },
+    })
     assert.equal(res.statusCode, 200, `${destinationPath(mod.id, 'es')} still resolves`)
     assert.ok(res.body.includes('<!doctype html>'))
   }
 
   // The shell navigation derives from the registered list: weather is gone,
-  // others remain.
-  const home = await app.inject({ method: 'GET', url: '/es' })
-  assert.ok(!home.body.includes(`href="${destinationPath('weather', 'es')}"`))
-  assert.ok(home.body.includes(`href="${destinationPath('risk', 'es')}"`))
+  // others remain. Checked on the documents placeholder, whose only links are
+  // the shell's (the home brief's tiles link to weather on their own).
+  const page = await app.inject({
+    method: 'GET',
+    url: destinationPath('documents', 'es'),
+    headers: { cookie },
+  })
+  assert.ok(!page.body.includes(`href="${destinationPath('weather', 'es')}"`))
+  assert.ok(page.body.includes(`href="${destinationPath('risk', 'es')}"`))
   await app.close()
 })
 

@@ -46,3 +46,30 @@
   </div>
 </div>
 {%- endmacro %}
+
+{# A NOTAM/SIGMET validity window. The caller passes each time already run
+   through `intlUtcDateTime`, or `null` when the provider stated none — which
+   renders the localized "not stated", never a substituted time. #}
+{% macro validityLine(t, startFormatted, endFormatted) -%}
+<p class="font-data text-[11px] text-slate-400">{{ t.translate('weather.validity_label') }}: {{ startFormatted if startFormatted else t.translate('weather.validity_not_stated') }} – {{ endFormatted if endFormatted else t.translate('weather.validity_not_stated') }}</p>
+{%- endmacro %}
+
+{# The empty state of a NOTAM/SIGMET list: "none in force" only when the
+   provider confirmed completeness, otherwise the unconfirmed-empty notice.
+   Stated in text, not by color. #}
+{% macro emptyListState(t, confirmedEmpty, confirmedKey, unconfirmedKey) -%}
+{%- if confirmedEmpty %}
+<p class="text-sm text-slate-400">{{ t.translate(confirmedKey) }}</p>
+{%- else %}
+<p class="flex items-start gap-2 text-sm text-amber-200" role="note"><span class="flex-shrink-0 mt-0.5">{{ icon('alert') }}</span><span>{{ t.translate(unconfirmedKey) }}</span></p>
+{%- endif %}
+{%- endmacro %}
+
+{# Link to the state's official NOTAM briefing (ENAIRE / NAV Portugal), set by
+   the service only when a NOTAM list is not confirmed complete. A plain
+   navigation — the application fetches nothing from it. #}
+{% macro briefingLink(t, briefing) -%}
+{%- if briefing %}
+<a href="{{ briefing.href }}" class="touch-target inline-flex items-center mt-2 text-xs text-slate-300 underline" rel="noopener noreferrer" target="_blank">{{ t.translate(briefing.labelKey) }}</a>
+{%- endif %}
+{%- endmacro %}

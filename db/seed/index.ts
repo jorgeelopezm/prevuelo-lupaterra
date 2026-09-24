@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url'
 import { ConfigError, loadConfig } from '../../src/server/config.js'
 import { createPool } from '../../src/platform/db/pool.js'
 import { hashPassword } from '../../src/platform/identity/passwords.js'
-import { mockEmbedding, seedDevDatabase } from './seed.js'
+import { mockEmbedding, seedDevDatabase, seedFleetSample, seedRiskSample } from './seed.js'
 
 /**
  * CLI: seed a development database with the development pilot and sample
@@ -84,8 +84,13 @@ export async function main(): Promise<void> {
       ],
     })
 
+    const fleet = await seedFleetSample(pool, result.pilotId, config.NODE_ENV)
+    const risk = await seedRiskSample(pool, result.pilotId, fleet.aircraftId, config.NODE_ENV)
+
     console.log(
-      `seed complete: pilots=${result.counts.pilots} documents=${result.counts.documents} chunks=${result.counts.chunks}`,
+      `seed complete: pilots=${result.counts.pilots} documents=${result.counts.documents} chunks=${result.counts.chunks} ` +
+        `fleet_aircraft=1 fleet_flights=${fleet.flightCount} fleet_documents=${fleet.documentCount} fleet_maintenance_items=${fleet.maintenanceItemCount} ` +
+        `risk_flight_intents=1 risk_assessments=${risk.assessmentCount}`,
     )
   } finally {
     await pool.end()

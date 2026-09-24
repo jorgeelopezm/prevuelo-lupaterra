@@ -23,6 +23,16 @@ const sessionSecretField = z.string().min(32, 'SESSION_SECRET must be at least 3
 const sessionTtlHoursField = z.coerce.number().int().positive().default(168)
 const authMaxFailedAttemptsField = z.coerce.number().int().positive().default(5)
 const authFailureWindowMinutesField = z.coerce.number().int().positive().default(15)
+/**
+ * Public self-registration switch. Off by default: the registration routes stay
+ * wired but refuse to create accounts until an operator opts in. Only the
+ * literal strings `true`/`false` are accepted — `z.coerce.boolean()` would read
+ * `"false"` as `true`.
+ */
+const registrationEnabledField = z
+  .enum(['true', 'false'])
+  .default('false')
+  .transform((value) => value === 'true')
 
 // Embedding provider (retrieval seam).
 const embeddingProviderField = z.enum(['mock', 'openai', 'local']).default('mock')
@@ -30,11 +40,17 @@ const embeddingDimensionsField = z.coerce.number().int().positive().default(768)
 const embeddingApiKeyField = z.string().optional()
 
 // Weather provider (MCP / weather seam).
-const weatherProviderField = z.enum(['mock', 'aemet', 'ipma', 'ead', 'avwx']).default('mock')
+const weatherProviderField = z.enum(['mock', 'aemet', 'ipma', 'ead', 'avwx', 'awc']).default('mock')
+/**
+ * NOTAM source, chosen separately because a weather provider may supply none
+ * (`awc`). Unset, it resolves to the weather provider when that one supplies
+ * NOTAMs — see `resolveNotamProvider`.
+ */
+const notamProviderField = z.enum(['mock', 'avwx']).optional()
 const aemetOpenDataApiKeyField = z.string().optional()
 const ipmaApiKeyField = z.string().optional()
 const eadApiKeyField = z.string().optional()
-/** AVWX bearer token (https://account.avwx.rest) — the only real provider implemented so far. */
+/** AVWX bearer token (https://account.avwx.rest). `awc` (aviationweather.gov) needs no credential. */
 const avwxApiTokenField = z.string().optional()
 
 // MCP server transport and behavior.
@@ -54,6 +70,14 @@ const weatherMcpTimeoutMsField = z.coerce.number().int().positive().default(8000
 const logLevelField = z
   .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
   .default('info')
+
+// Fleet module (aircraft, logbook, maintenance, engine data): advance-warning
+// windows and upload limits, kept as configuration rather than constants so
+// they are testable and adjustable without touching view code.
+const documentWarningDaysField = z.coerce.number().int().positive().default(30)
+const maintenanceWarningDaysField = z.coerce.number().int().positive().default(30)
+const maintenanceWarningHoursField = z.coerce.number().positive().default(10)
+const engineDataMaxBytesField = z.coerce.number().int().positive().default(8388608)
 
 /** A non-mock embedding provider must carry its credential. */
 export function embeddingProviderRefine(data: Record<string, unknown>, ctx: z.RefinementCtx): void {
@@ -87,6 +111,49 @@ export function weatherProviderRefine(data: Record<string, unknown>, ctx: z.Refi
   }
 }
 
+/** Weather providers that also supply NOTAMs, and so can default the NOTAM provider. */
+const NOTAM_CAPABLE_PROVIDERS = ['mock', 'avwx'] as const
+type NotamProvider = (typeof NOTAM_CAPABLE_PROVIDERS)[number]
+
+/**
+ * The NOTAM provider in effect: `NOTAM_PROVIDER` when set, otherwise the
+ * weather provider when it supplies NOTAMs, otherwise `null` (the weather
+ * provider is not implemented, or config validation already refused it).
+ */
+export function resolveNotamProvider(data: {
+  WEATHER_PROVIDER?: unknown
+  NOTAM_PROVIDER?: unknown
+}): NotamProvider | null {
+  if (data.NOTAM_PROVIDER) return data.NOTAM_PROVIDER as NotamProvider
+  const weather = String(data.WEATHER_PROVIDER)
+  return (NOTAM_CAPABLE_PROVIDERS as readonly string[]).includes(weather)
+    ? (weather as NotamProvider)
+    : null
+}
+
+/**
+ * A weather provider that supplies no NOTAMs (`awc`) requires an explicit
+ * NOTAM provider — never a silent fallback to sample NOTAMs — and a named
+ * NOTAM provider must carry its own credential.
+ */
+export function notamProviderRefine(data: Record<string, unknown>, ctx: z.RefinementCtx): void {
+  if (data.WEATHER_PROVIDER === 'awc' && !data.NOTAM_PROVIDER) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['NOTAM_PROVIDER'],
+      message:
+        "WEATHER_PROVIDER 'awc' supplies no NOTAMs; NOTAM_PROVIDER must be set (mock or avwx)",
+    })
+  }
+  if (data.NOTAM_PROVIDER === 'avwx' && !data.AVWX_API_TOKEN) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['NOTAM_PROVIDER'],
+      message: "NOTAM_PROVIDER 'avwx' requires AVWX_API_TOKEN to be set",
+    })
+  }
+}
+
 /** The `http` weather MCP client transport must carry the server's URL. */
 export function weatherMcpTransportRefine(
   data: Record<string, unknown>,
@@ -113,10 +180,12 @@ export const configSchema = z
     SESSION_TTL_HOURS: sessionTtlHoursField,
     AUTH_MAX_FAILED_ATTEMPTS: authMaxFailedAttemptsField,
     AUTH_FAILURE_WINDOW_MINUTES: authFailureWindowMinutesField,
+    REGISTRATION_ENABLED: registrationEnabledField,
     EMBEDDING_PROVIDER: embeddingProviderField,
     EMBEDDING_DIMENSIONS: embeddingDimensionsField,
     EMBEDDING_API_KEY: embeddingApiKeyField,
     WEATHER_PROVIDER: weatherProviderField,
+    NOTAM_PROVIDER: notamProviderField,
     AEMET_OPENDATA_API_KEY: aemetOpenDataApiKeyField,
     IPMA_API_KEY: ipmaApiKeyField,
     EAD_API_KEY: eadApiKeyField,
@@ -130,9 +199,14 @@ export const configSchema = z
     WEATHER_MCP_URL: weatherMcpUrlField,
     WEATHER_MCP_TIMEOUT_MS: weatherMcpTimeoutMsField,
     LOG_LEVEL: logLevelField,
+    DOCUMENT_WARNING_DAYS: documentWarningDaysField,
+    MAINTENANCE_WARNING_DAYS: maintenanceWarningDaysField,
+    MAINTENANCE_WARNING_HOURS: maintenanceWarningHoursField,
+    ENGINE_DATA_MAX_BYTES: engineDataMaxBytesField,
   })
   .superRefine(embeddingProviderRefine)
   .superRefine(weatherProviderRefine)
+  .superRefine(notamProviderRefine)
   .superRefine(weatherMcpTransportRefine)
 
 export type AppConfig = z.infer<typeof configSchema>
@@ -147,6 +221,7 @@ export const mcpConfigSchema = z
     NODE_ENV: nodeEnvField,
     HOST: hostField,
     WEATHER_PROVIDER: weatherProviderField,
+    NOTAM_PROVIDER: notamProviderField,
     AEMET_OPENDATA_API_KEY: aemetOpenDataApiKeyField,
     IPMA_API_KEY: ipmaApiKeyField,
     EAD_API_KEY: eadApiKeyField,
@@ -159,6 +234,7 @@ export const mcpConfigSchema = z
     LOG_LEVEL: logLevelField,
   })
   .superRefine(weatherProviderRefine)
+  .superRefine(notamProviderRefine)
 
 export type McpConfig = z.infer<typeof mcpConfigSchema>
 

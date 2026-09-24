@@ -18,7 +18,9 @@ import type {
   WeatherMcpResult,
 } from './types.js'
 
-const AVIATION_WEATHER_DIR = fileURLToPath(new URL('../../../mcp/aviation-weather/', import.meta.url))
+const AVIATION_WEATHER_DIR = fileURLToPath(
+  new URL('../../../mcp/aviation-weather/', import.meta.url),
+)
 
 export interface WeatherMcpClientConfig {
   transport: 'stdio' | 'http'

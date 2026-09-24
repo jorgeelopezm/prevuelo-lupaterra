@@ -243,3 +243,39 @@ test('each tool returns a well-formed result against the mock provider', async (
     }
   })
 })
+
+test('get_notams carries coverage and serializes unstated validity as JSON null, fresh and from cache', async () => {
+  const mock = createMockWeatherProvider()
+  const provider: WeatherProvider = {
+    ...mock,
+    id: 'nullable',
+    getNotams: async (icaos) => ({
+      ...(await mock.getNotams(icaos)),
+      entries: icaos.map((icao) => ({
+        icao,
+        notams: [{ id: 'A9/26', text: 'NO STATED VALIDITY', startAt: null, endAt: null }],
+        coverage: 'unknown' as const,
+      })),
+    }),
+  }
+  const { client, server } = await connect(provider)
+  try {
+    for (const expectCached of [false, true]) {
+      const result = await client.callTool({ name: 'get_notams', arguments: { icao: ['LEMD'] } })
+      const text = toolText(result)
+      const data = JSON.parse(text) as {
+        cached: boolean
+        entries: Array<{ coverage: string; notams: Array<Record<string, unknown>> }>
+      }
+      assert.equal(data.cached, expectCached)
+      assert.equal(data.entries[0]?.coverage, 'unknown')
+      const notam = data.entries[0]!.notams[0]!
+      assert.ok('startAt' in notam && 'endAt' in notam, 'validity keys present, not omitted')
+      assert.equal(notam.startAt, null)
+      assert.equal(notam.endAt, null)
+    }
+  } finally {
+    await client.close()
+    await server.close()
+  }
+})

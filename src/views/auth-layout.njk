@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="{{ lang }}">
+{% from 'partials/icons.njk' import icon %}
+{#
+  Shell-less layout for the authentication screens (sign-in, registration) and
+  anonymous error pages. There is no navigation, drawer, tab bar, or
+  active-aircraft control: nothing behind the wall is named here.
+
+  Authored at 320px first, as one fluid column with no fixed widths. On phones
+  the content is top-aligned, so the on-screen keyboard never covers the
+  submit control. From the small breakpoint up it is vertically centred. The
+  safe-area insets keep it clear of notches and the home indicator.
+#}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+</head>
+<body class="bg-canvas text-slate-200 min-h-dvh flex flex-col">
+  <main id="main" class="flex-1 w-full max-w-sm mx-auto px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-6 flex flex-col sm:justify-center">
+    <div class="flex items-center justify-center gap-2.5 mb-6">
+      <div class="w-9 h-9 rounded bg-accent flex items-center justify-center flex-shrink-0 text-white">
+        {{ icon('plane') }}
+      </div>
+      <div>
+        <div class="text-base font-bold text-white tracking-wide">PRE-VUELO</div>
+        <div class="text-[10px] text-slate-400 font-data tracking-widest">RISK MGMT</div>
+      </div>
+    </div>
+
+    {{ content | safe }}
+  </main>
+
+  {%- if authSwitcherLinks %}
+  <footer class="w-full max-w-sm mx-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <nav aria-label="{{ t.translate('nav.language') }}" class="flex justify-center gap-2">
+      {%- for l in authSwitcherLinks %}
+      <a href="{{ l.href }}" hreflang="{{ l.code }}" lang="{{ l.code }}"
+        {%- if l.active %} aria-current="true"{% endif %}
+        class="touch-target px-3 rounded text-xs font-bold uppercase tracking-wide {% if l.active %}bg-accent text-white{% else %}text-slate-400 bg-surface border border-edge hover:border-slate-500 hover:text-slate-300{% endif %}">{{ l.code }}</a>
+      {%- endfor %}
+    </nav>
+  </footer>
+  {%- endif %}
+</body>
+</html>

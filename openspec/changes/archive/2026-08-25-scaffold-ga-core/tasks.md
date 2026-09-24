@@ -126,5 +126,21 @@
 
 ## 11. Follow-up (not implemented here)
 
-- [ ] 11.1 Run an `/opsx:explore` session on multi-tenancy, flight schools, and club-level roles before any feature change adds a table — the outcome reshapes the ownership columns every feature inherits
-- [ ] 11.2 In parallel with the work above, investigate EUROCONTROL EAD/NM B2B access and NOTAM redistribution terms, since the answer gates the weather capability's design
+- [x] 11.1 Run an `/opsx:explore` session on multi-tenancy, flight schools, and club-level roles before any feature change adds a table — the outcome reshapes the ownership columns every feature inherits
+  Explored and interviewed 2026-09-23. By then nine feature tables had already shipped with `pilot_id`, so this is a migration, not a greenfield design. Decisions:
+  1. **First customers are owner-pilots.** The structure must allow co-owners from the start; the co-owner invite interface comes later. Clubs and schools are out of the 12-month scope.
+  2. **Ownership split by nature.** Aircraft-bound records (aircraft, documents, W&B, maintenance, checklists, engine-monitor data) are owned by an **operator**. Personal records (logbook, flight intents, risk assessments, checklist runs, sessions) stay `pilot_id`. Each pilot gets a personal operator created automatically, so nothing visible changes.
+  3. **One login spans many operators**, with no context switching, and one personal logbook across all of them.
+  4. **Timing: structure now, roles later.** A single `member` role with equal edit rights, plus `created_by`/`updated_by` on aircraft-bound rows.
+  5. **Aircraft total hours = opening offset + the sum of all members' flights, shown only as an aggregate.** Co-owners never see each other's flight rows. A member who leaves still counts toward the total, and their logbook stays theirs. Known limitation: with two co-owners, each can infer the other's total by subtraction. An aircraft-level hour-meter log is a possible future record type.
+  6. **Standing privacy rule:** personal records are never visible to an operator or its members by default. Any future sharing (for example with an instructor) is an explicit, revocable opt-in by the pilot.
+  7. **Enforcement:** a Postgres row-level-security spike before committing, keeping the "foreign row is a 404" behavior.
+  Follow-up: the `operator-ownership` change.
+- [x] 11.2 In parallel with the work above, investigate EUROCONTROL EAD/NM B2B access and NOTAM redistribution terms, since the answer gates the weather capability's design
+  Investigated 2026-09-23. **No free, machine-readable, redistributable NOTAM source exists for Spain/Portugal.**
+  - **EAD Basic** is free after registration, but it is a web portal. Since 2022 it carries a disclaimer that it is a demo tool, not connected to the operational database, and it may not show the latest data. It is not usable as a data source.
+  - **EAD machine access** (MyEAD web services, or EAD Pro) requires a signed EAD Agreement and liability insurance. A third-party redistributor (Type 3) pays service charges plus royalties on revenue from products that use EAD data.
+  - **NM B2B** is limited to ANSPs, aircraft operators, airports, and ground handlers. Its AIM data is ATFM network information, not a NOTAM feed for aerodromes.
+  - **ENAIRE ICARO XXI** (notampib.enaire.es) and **NAV Portugal** (ais.nav.pt, fplbriefing.nav.pt) offer free NOTAM/PIB briefings to registered users, with no public API. A data agreement would have to be requested directly.
+  - FAA NOTAM API: dropped by the developer (2026-09-23).
+  - Consequence for design: NOTAMs stay `unknown` coverage (the unconfirmed-empty state) until there is a licensed source. The honest free option is to link to the official ENAIRE/NAV Portugal briefing, never to scrape it.
