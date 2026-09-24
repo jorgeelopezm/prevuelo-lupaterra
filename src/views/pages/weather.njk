@@ -3,7 +3,7 @@
    server. Rendered fragment-only for htmx navigation, embedded in the shell
    for full-page requests — same partial either way (ViewRenderer contract). #}
 {% from 'partials/components.njk' import pageHeader, card, emptyState, badge %}
-{% from 'partials/weather-results.njk' import provenanceLine, errorBox %}
+{% from 'partials/weather-results.njk' import provenanceLine, errorBox, validityLine, emptyListState, briefingLink %}
 
 {{ pageHeader(title, subtitle) }}
 
@@ -47,7 +47,7 @@
           {{ errorBox(t, aerodrome.metar.error) }}
         {%- elif aerodrome.metar.data.report %}
           <pre class="font-data text-sm text-white bg-canvas/50 rounded p-2 whitespace-pre-wrap">{{ aerodrome.metar.data.report }}</pre>
-          {{ provenanceLine(t, aerodrome.metar.provenance.provider, t.translate('weather.observed_label'), aerodrome.metar.provenance.issuedAt | intlUtcDateTime, aerodrome.metar.provenance.retrievedAt | intlUtcDateTime, aerodrome.metar.provenance.cached, aerodrome.metar.provenance.cacheAgeSeconds, aerodrome.metar.provenance.sample) }}
+          {{ provenanceLine(t, aerodrome.metar.provenance.provider, t.translate('weather.observed_label'), (aerodrome.metar.provenance.issuedAt | intlUtcDateTime) if aerodrome.metar.provenance.issuedAt else t.translate('weather.validity_not_stated'), aerodrome.metar.provenance.retrievedAt | intlUtcDateTime, aerodrome.metar.provenance.cached, aerodrome.metar.provenance.cacheAgeSeconds, aerodrome.metar.provenance.sample) }}
           {%- if aerodrome.decoded %}
           <div class="mt-2">
             <h4 class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{{ t.translate('weather.decoded_label') }}</h4>
@@ -69,7 +69,7 @@
           {{ errorBox(t, aerodrome.taf.error) }}
         {%- elif aerodrome.taf.data.report %}
           <pre class="font-data text-sm text-white bg-canvas/50 rounded p-2 whitespace-pre-wrap">{{ aerodrome.taf.data.report }}</pre>
-          {{ provenanceLine(t, aerodrome.taf.provenance.provider, t.translate('weather.issued_label'), aerodrome.taf.provenance.issuedAt | intlUtcDateTime, aerodrome.taf.provenance.retrievedAt | intlUtcDateTime, aerodrome.taf.provenance.cached, aerodrome.taf.provenance.cacheAgeSeconds, aerodrome.taf.provenance.sample) }}
+          {{ provenanceLine(t, aerodrome.taf.provenance.provider, t.translate('weather.issued_label'), (aerodrome.taf.provenance.issuedAt | intlUtcDateTime) if aerodrome.taf.provenance.issuedAt else t.translate('weather.validity_not_stated'), aerodrome.taf.provenance.retrievedAt | intlUtcDateTime, aerodrome.taf.provenance.cached, aerodrome.taf.provenance.cacheAgeSeconds, aerodrome.taf.provenance.sample) }}
         {%- else %}
           <p class="text-sm text-slate-400">{{ t.translate('weather.no_data') }}</p>
         {%- endif %}
@@ -79,18 +79,22 @@
         <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wide mb-1">{{ t.translate('weather.notams_label') }}</h3>
         {%- if aerodrome.notams.status === 'error' %}
           {{ errorBox(t, aerodrome.notams.error) }}
-        {%- elif aerodrome.notams.data.notams.length === 0 %}
-          <p class="text-sm text-slate-400">{{ t.translate('weather.no_notams') }}</p>
         {%- else %}
+          {%- if aerodrome.notams.data.notams.length === 0 %}
+          {{ emptyListState(t, aerodrome.notams.data.confirmedEmpty, 'weather.no_notams', 'weather.notams_unconfirmed_empty') }}
+          {%- else %}
           <ul class="space-y-2">
             {%- for notam in aerodrome.notams.data.notams %}
             <li class="text-sm text-slate-300">
               {{ badge(notam.id, 'neutral') }}
               <span class="ml-1">{{ notam.text }}</span>
+              {{ validityLine(t, (notam.startAt | intlUtcDateTime) if notam.startAt else null, (notam.endAt | intlUtcDateTime) if notam.endAt else null) }}
             </li>
             {%- endfor %}
           </ul>
-          {{ provenanceLine(t, aerodrome.notams.provenance.provider, t.translate('weather.issued_label'), aerodrome.notams.provenance.issuedAt | intlUtcDateTime, aerodrome.notams.provenance.retrievedAt | intlUtcDateTime, aerodrome.notams.provenance.cached, aerodrome.notams.provenance.cacheAgeSeconds, aerodrome.notams.provenance.sample) }}
+          {%- endif %}
+          {{ provenanceLine(t, aerodrome.notams.provenance.provider, t.translate('weather.issued_label'), (aerodrome.notams.provenance.issuedAt | intlUtcDateTime) if aerodrome.notams.provenance.issuedAt else t.translate('weather.validity_not_stated'), aerodrome.notams.provenance.retrievedAt | intlUtcDateTime, aerodrome.notams.provenance.cached, aerodrome.notams.provenance.cacheAgeSeconds, aerodrome.notams.provenance.sample) }}
+          {{ briefingLink(t, aerodrome.notams.data.briefing) }}
         {%- endif %}
       </section>
     {% endcall %}
@@ -101,18 +105,21 @@
       <h2 class="text-sm font-bold text-white font-data mb-3">{{ t.translate('weather.sigmet_label') }} — {{ viewModel.firResult.fir }}</h2>
       {%- if viewModel.firResult.sigmet.status === 'error' %}
         {{ errorBox(t, viewModel.firResult.sigmet.error) }}
-      {%- elif viewModel.firResult.sigmet.data.sigmets.length === 0 %}
-        <p class="text-sm text-slate-400">{{ t.translate('weather.no_sigmets') }}</p>
       {%- else %}
+        {%- if viewModel.firResult.sigmet.data.sigmets.length === 0 %}
+        {{ emptyListState(t, viewModel.firResult.sigmet.data.confirmedEmpty, 'weather.no_sigmets', 'weather.sigmets_unconfirmed_empty') }}
+        {%- else %}
         <ul class="space-y-2">
           {%- for sigmet in viewModel.firResult.sigmet.data.sigmets %}
           <li class="text-sm text-slate-300">
             <p class="font-data text-xs text-slate-400">{{ sigmet.header }}</p>
             <p>{{ sigmet.text }}</p>
+            {{ validityLine(t, (sigmet.startAt | intlUtcDateTime) if sigmet.startAt else null, (sigmet.endAt | intlUtcDateTime) if sigmet.endAt else null) }}
           </li>
           {%- endfor %}
         </ul>
-        {{ provenanceLine(t, viewModel.firResult.sigmet.provenance.provider, t.translate('weather.issued_label'), viewModel.firResult.sigmet.provenance.issuedAt | intlUtcDateTime, viewModel.firResult.sigmet.provenance.retrievedAt | intlUtcDateTime, viewModel.firResult.sigmet.provenance.cached, viewModel.firResult.sigmet.provenance.cacheAgeSeconds, viewModel.firResult.sigmet.provenance.sample) }}
+        {%- endif %}
+        {{ provenanceLine(t, viewModel.firResult.sigmet.provenance.provider, t.translate('weather.issued_label'), (viewModel.firResult.sigmet.provenance.issuedAt | intlUtcDateTime) if viewModel.firResult.sigmet.provenance.issuedAt else t.translate('weather.validity_not_stated'), viewModel.firResult.sigmet.provenance.retrievedAt | intlUtcDateTime, viewModel.firResult.sigmet.provenance.cached, viewModel.firResult.sigmet.provenance.cacheAgeSeconds, viewModel.firResult.sigmet.provenance.sample) }}
       {%- endif %}
     {% endcall %}
     {%- endif %}

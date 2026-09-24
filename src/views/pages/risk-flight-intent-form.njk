@@ -1,0 +1,46 @@
+{# Inline flight-intent creation, the first step of starting a risk
+   assessment when the pilot has no existing flight intent to select
+   (flight-intent spec: "Creating a flight intent"). Plain POST + redirect. #}
+{% from 'partials/components.njk' import pageHeader, card %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-4 max-w-xl') %}
+<form method="post" action="{{ action }}" class="space-y-4">
+  <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+
+  <div>
+    <label for="aircraftId" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('flight_intent.aircraft') }}</label>
+    <select id="aircraftId" name="aircraftId" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white">
+      {%- for a in aircraftOptions %}
+      <option value="{{ a.id }}" {% if values.aircraftId === a.id %}selected{% endif %}>{{ a.registration }}</option>
+      {%- endfor %}
+    </select>
+    {%- if errors.aircraftId %}<p class="mt-1 text-[11px] text-red-300">{{ errors.aircraftId }}</p>{% endif %}
+  </div>
+
+  <div>
+    <label for="plannedDate" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('flight_intent.planned_date') }}</label>
+    <input type="date" id="plannedDate" name="plannedDate" value="{{ values.plannedDate }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    {%- if errors.plannedDate %}<p class="mt-1 text-[11px] text-red-300">{{ errors.plannedDate }}</p>{% endif %}
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label for="departureIcao" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('flight_intent.departure') }}</label>
+      <input type="text" id="departureIcao" name="departureIcao" value="{{ values.departureIcao }}" maxlength="4" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data uppercase">
+      {%- if errors.departureIcao %}<p class="mt-1 text-[11px] text-red-300">{{ errors.departureIcao }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="destinationIcao" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('flight_intent.destination') }}</label>
+      <input type="text" id="destinationIcao" name="destinationIcao" value="{{ values.destinationIcao }}" maxlength="4" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data uppercase">
+      {%- if errors.destinationIcao %}<p class="mt-1 text-[11px] text-red-300">{{ errors.destinationIcao }}</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="touch-target px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('flight_intent.save') }}</button>
+    <a href="{{ cancelHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('risk.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}

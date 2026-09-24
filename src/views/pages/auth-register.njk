@@ -1,0 +1,63 @@
+{#
+  Registration screen (identity-access: "Self-registration is switchable and
+  disabled by default"). When registration is enabled, it shows the form in
+  the same frame and with the same phone rules as sign-in. When disabled, it
+  shows a notice that sign-up is unavailable, with a link back to sign-in, and
+  renders no form.
+#}
+{% from 'partials/components.njk' import card, emptyState %}
+{% from 'partials/icons.njk' import icon %}
+{%- if registrationEnabled %}
+{% call card('p-5 sm:p-6') %}
+  <h1 class="text-xl font-bold text-white">{{ t.translate('auth.register_title') }}</h1>
+
+  {%- if error %}
+  <p role="alert" id="auth-error" class="mt-4 flex items-start gap-2 rounded border border-red-700/60 bg-red-900/40 px-3 py-2.5 text-sm text-red-200">
+    <span class="mt-0.5 flex-shrink-0">{{ icon('alert') }}</span><span>{{ error }}</span>
+  </p>
+  {%- endif %}
+
+  <form method="post" action="{{ action }}" class="mt-5 flex flex-col gap-4">
+    <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <div class="flex flex-col gap-1.5">
+      <label for="register-email" class="text-sm font-medium text-slate-300">{{ t.translate('auth.email') }}</label>
+      <input id="register-email" type="email" name="email" value="{{ values.email }}"
+        autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required
+        {%- if error %} aria-invalid="true" aria-describedby="auth-error"{% endif %}
+        class="w-full min-h-11 rounded border border-edge bg-canvas px-3 text-base text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40">
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="register-name" class="text-sm font-medium text-slate-300">{{ t.translate('auth.display_name') }}</label>
+      <input id="register-name" type="text" name="displayName" value="{{ values.displayName }}"
+        autocomplete="name" required
+        {%- if error %} aria-invalid="true" aria-describedby="auth-error"{% endif %}
+        class="w-full min-h-11 rounded border border-edge bg-canvas px-3 text-base text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40">
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="register-password" class="text-sm font-medium text-slate-300">{{ t.translate('auth.password') }}</label>
+      <input id="register-password" type="password" name="password"
+        autocomplete="new-password" minlength="8" required aria-describedby="register-password-hint{% if error %} auth-error{% endif %}"
+        {%- if error %} aria-invalid="true"{% endif %}
+        class="w-full min-h-11 rounded border border-edge bg-canvas px-3 text-base text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40">
+      <p id="register-password-hint" class="text-xs text-slate-400">{{ t.translate('auth.password_hint') }}</p>
+    </div>
+
+    <button type="submit" class="touch-target w-full min-h-11 rounded bg-accent px-4 text-base font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-accent-soft">{{ t.translate('auth.register') }}</button>
+  </form>
+{% endcall %}
+
+<p class="mt-4 flex flex-wrap items-center justify-center gap-x-1 text-sm text-slate-400">
+  <span>{{ t.translate('auth.have_account') }}</span>
+  <a href="{{ signInHref }}" class="touch-target px-2 font-medium text-blue-300 hover:text-blue-200">{{ t.translate('auth.sign_in') }}</a>
+</p>
+{%- else %}
+{% call card('p-5 sm:p-6') %}
+  <h1 class="sr-only">{{ t.translate('auth.registration_unavailable_title') }}</h1>
+  {{ emptyState(t.translate('auth.registration_unavailable_title'), t.translate('auth.registration_unavailable_message'), 'shield') }}
+  <a href="{{ signInHref }}" class="touch-target w-full min-h-11 rounded bg-accent px-4 text-base font-semibold text-white hover:bg-blue-500">{{ t.translate('auth.back_to_sign_in') }}</a>
+{% endcall %}
+{%- endif %}

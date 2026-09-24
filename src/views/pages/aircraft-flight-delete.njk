@@ -1,0 +1,18 @@
+{# Logbook entry deletion confirmation (flight-logbook spec: "Deletion
+   requires confirmation"). #}
+{% from 'partials/components.njk' import pageHeader, card %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-6 max-w-lg') %}
+  <p class="text-sm text-slate-300">{{ t.translate('fleet.delete_entry_confirm_message') }}</p>
+  <p class="text-sm font-data text-white mt-2">{{ entry.flightDate }} — {{ entry.departureAerodrome }} → {{ entry.arrivalAerodrome }} · {{ entry.totalHours }} h</p>
+
+  <div class="flex gap-3 mt-6">
+    <form method="post" action="{{ action }}">
+      <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+      <button type="submit" class="touch-target px-4 rounded bg-red-700 text-white text-sm font-semibold">{{ t.translate('fleet.delete') }}</button>
+    </form>
+    <a href="{{ cancelHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('fleet.cancel') }}</a>
+  </div>
+{% endcall %}

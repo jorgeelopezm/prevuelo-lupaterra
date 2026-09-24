@@ -1,0 +1,55 @@
+{# Add maintenance item form (maintenance-tracking capability). At least one
+   due condition (date and/or hours) is required — enforced server-side. #}
+{% from 'partials/components.njk' import pageHeader, card %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-4 max-w-xl') %}
+<form method="post" action="{{ action }}" class="space-y-4">
+  <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+  {%- if errors.general %}<p class="text-[11px] text-red-300">{{ errors.general }}</p>{% endif %}
+
+  <div>
+    <label for="description" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.mx_description') }}</label>
+    <input type="text" id="description" name="description" value="{{ values.description }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white">
+    {%- if errors.description %}<p class="mt-1 text-[11px] text-red-300">{{ errors.description }}</p>{% endif %}
+  </div>
+
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label for="dueOn" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.mx_due_on') }}</label>
+      <input type="date" id="dueOn" name="dueOn" value="{{ values.dueOn }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="recurrenceMonths" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.mx_recurrence_months') }}</label>
+      <input type="number" min="1" id="recurrenceMonths" name="recurrenceMonths" value="{{ values.recurrenceMonths }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="dueAtHours" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.mx_due_at_hours') }}</label>
+      <input type="text" inputmode="decimal" id="dueAtHours" name="dueAtHours" value="{{ values.dueAtHours }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="hoursBasis" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.mx_hours_basis') }}</label>
+      <select id="hoursBasis" name="hoursBasis" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white">
+        <option value="">—</option>
+        <option value="airframe" {% if values.hoursBasis === 'airframe' %}selected{% endif %}>{{ t.translate('fleet.mx_basis_airframe') }}</option>
+        <option value="tach" {% if values.hoursBasis === 'tach' %}selected{% endif %}>{{ t.translate('fleet.mx_basis_tach') }}</option>
+      </select>
+      {%- if errors.hoursBasis %}<p class="mt-1 text-[11px] text-red-300">{{ errors.hoursBasis }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="recurrenceHours" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.mx_recurrence_hours') }}</label>
+      <input type="text" inputmode="decimal" id="recurrenceHours" name="recurrenceHours" value="{{ values.recurrenceHours }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="reference" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.mx_reference') }}</label>
+      <input type="text" id="reference" name="reference" value="{{ values.reference }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white">
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="touch-target px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('fleet.save') }}</button>
+    <a href="{{ cancelHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('fleet.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}

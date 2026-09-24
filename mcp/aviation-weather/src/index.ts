@@ -41,10 +41,13 @@ export async function main(): Promise<void> {
   const transport = flags.transport ?? config.MCP_TRANSPORT
 
   try {
-    const { server } = buildWeatherServer(config)
+    const { server, provider, notamProvider } = buildWeatherServer(config)
     // stderr on purpose: never a non-protocol line on stdout in stdio mode.
     const logger = createLogger({ level: config.LOG_LEVEL, stream: process.stderr })
-    logger.info({ weatherProvider: config.WEATHER_PROVIDER }, 'selected weather provider')
+    logger.info(
+      { weatherProvider: provider.id, notamProvider: notamProvider.id },
+      'selected weather provider',
+    )
 
     if (transport === 'http') {
       await serveHttp(server, { host: config.HOST, port: config.MCP_PORT, logger })

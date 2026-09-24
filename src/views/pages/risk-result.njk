@@ -1,0 +1,59 @@
+{# Risk-assessment result (preflight-risk-assessment spec: "Responses are
+   aggregated into a Low/Medium/High verdict"). The verdict always carries a
+   text label, never color alone. Read-only: no control here can modify the
+   stored answers, score, or verdict (spec: "Records are not editable"). #}
+{% from 'partials/components.njk' import pageHeader, card, statusChip %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-4 mb-4') %}
+<div class="flex items-center justify-between mb-2">
+  <span class="text-xs text-slate-400">{{ t.translate('risk.assessed_for') }} {{ flightIntent.departureIcao }} &rarr; {{ flightIntent.destinationIcao }} &middot; {{ flightIntent.plannedDate }}</span>
+</div>
+<div class="flex items-center gap-3">
+  {%- if assessment.verdict === 'low' %}
+  {{ statusChip(t.translate('risk.low'), 'good') }}
+  {%- elif assessment.verdict === 'medium' %}
+  {{ statusChip(t.translate('risk.medium'), 'warn') }}
+  {%- else %}
+  {{ statusChip(t.translate('risk.high'), 'bad') }}
+  {%- endif %}
+  <span class="text-xs text-slate-400 font-data">{{ t.translate('risk.overall_score') }}: {{ assessment.overallScore }}</span>
+</div>
+<p class="text-sm text-slate-300 mt-3">
+  {%- if assessment.verdict === 'low' %}{{ t.translate('risk.low_msg') }}
+  {%- elif assessment.verdict === 'medium' %}{{ t.translate('risk.medium_msg') }}
+  {%- else %}{{ t.translate('risk.high_msg') }}{% endif -%}
+</p>
+{% endcall %}
+
+{% if assessment.topFactors.length > 0 %}
+{% call card('p-4 mb-4') %}
+<h2 class="text-sm font-semibold text-white mb-2">{{ t.translate('risk.top_factors') }}</h2>
+<ul class="space-y-1 text-xs text-slate-300">
+  {%- for factor in assessment.topFactors %}
+  <li class="flex items-center justify-between">
+    <span>{{ t.translate('risk.factor.' + factor.itemKey) }}</span>
+    <span class="font-data text-slate-400">{{ factor.points }} {{ t.translate('risk.pts') }}</span>
+  </li>
+  {%- endfor %}
+</ul>
+{% endcall %}
+{% endif %}
+
+{% call card('p-4') %}
+<h2 class="text-sm font-semibold text-white mb-2">{{ t.translate('risk.title') }}</h2>
+<dl class="space-y-1 text-xs">
+  {%- for domain in assessment.domains %}
+  <div class="flex items-center justify-between">
+    <dt class="text-slate-300">{{ t.translate(domain.titleKey) }}</dt>
+    <dd class="font-data text-slate-400">{{ domain.score }}</dd>
+  </div>
+  {%- endfor %}
+</dl>
+{% endcall %}
+
+<div class="mt-4 flex gap-3">
+  <a href="{{ flightIntent.startAssessmentHref }}" class="touch-target inline-flex items-center px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('risk.new_assessment') }}</a>
+  <a href="{{ backHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('risk.back_to_risk') }}</a>
+</div>

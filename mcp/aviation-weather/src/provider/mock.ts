@@ -137,14 +137,27 @@ export function createMockWeatherProvider(): WeatherProvider {
 
     async getNotams(icaos: readonly string[]): Promise<NotamResult> {
       const entries: NotamReport[] = icaos.map((icao) => {
-        return { icao, notams: NOTAMS_BY_ICAO[icao] ?? [] }
+        // A seeded aerodrome's fixture list is the whole (sample) set, so an
+        // empty one (LPPT, LPPR) is a confirmed "none in force"; an unseeded
+        // one is only "none returned".
+        const seeded = Object.hasOwn(NOTAMS_BY_ICAO, icao)
+        return {
+          icao,
+          notams: NOTAMS_BY_ICAO[icao] ?? [],
+          coverage: seeded ? ('complete' as const) : ('unknown' as const),
+        }
       })
       return { ...provenance(false), entries }
     },
 
     async getSigmet(firs: readonly string[]): Promise<SigmetResult> {
       const entries: SigmetReport[] = firs.map((fir) => {
-        return { fir, sigmets: SIGMETS_BY_FIR[fir] ?? [] }
+        const seeded = Object.hasOwn(SIGMETS_BY_FIR, fir)
+        return {
+          fir,
+          sigmets: SIGMETS_BY_FIR[fir] ?? [],
+          coverage: seeded ? ('complete' as const) : ('unknown' as const),
+        }
       })
       return { ...provenance(false), entries }
     },

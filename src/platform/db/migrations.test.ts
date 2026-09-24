@@ -68,14 +68,27 @@ test('a migration failed in a previous run can be retried successfully', async (
 
 test('loader reads and templates the shipped migration files', async () => {
   const templates = await loadMigrationTemplates('db/migrations', 768)
-  assert.equal(templates.length, 3)
+  assert.equal(templates.length, 12)
   assert.deepEqual(
     templates.map((t) => t.version),
-    [1, 2, 3],
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   )
   assert.deepEqual(
     templates.map((t) => t.name),
-    ['enable_vector', 'pilots_sessions', 'documents_chunks'],
+    [
+      'enable_vector',
+      'pilots_sessions',
+      'documents_chunks',
+      'aircraft',
+      'aircraft_documents_and_wb',
+      'flight_entries',
+      'maintenance_items',
+      'engine_data_files',
+      'flight_intents',
+      'risk_assessments',
+      'checklists',
+      'checklist_runs',
+    ],
   )
   const documents = templates[2] as MigrationTemplate
   assert.ok(documents.sql.includes('vector(768)'), 'dimension templated into the column')

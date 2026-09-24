@@ -40,8 +40,11 @@ function jsonRpcError(id: unknown, code: number, message: string): string {
  * follow-up requests are routed to the same transport and never re-connect a
  * second transport to the same {@link McpServer}. A POST without a session id
  * may only be an initialize request — anything else is a 400. GET (SSE
- * streaming) is not supported in JSON-response mode and answers 405; DELETE
- * closes the session.
+ * streaming) is not supported in JSON-response mode and answers 405, except
+ * `GET /health`, a plain liveness probe with no MCP session semantics (for a
+ * process supervisor's health check, e.g. antel-infra's `WaitForHealthy`,
+ * which only wants a 2xx and has no MCP client of its own); DELETE closes the
+ * session.
  */
 export async function serveHttp(
   server: McpServer,
@@ -56,6 +59,11 @@ export async function serveHttp(
   async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     try {
       if (req.method === 'GET') {
+        if (req.url === '/health') {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ status: 'ok' }))
+          return
+        }
         // JSON-response mode opens no SSE stream for a GET to attach to.
         res.writeHead(405, { Allow: 'POST, DELETE', 'Content-Type': 'text/plain' })
         res.end('method not allowed: this server uses JSON responses and exposes no SSE stream')

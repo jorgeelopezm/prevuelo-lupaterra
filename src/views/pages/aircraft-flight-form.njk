@@ -1,0 +1,167 @@
+{# Flight/FSTD logbook entry form (flight-logbook capability). Plain POST +
+   redirect, no JavaScript: the entry-type choice is two radio buttons that
+   show/hide the relevant fields via CSS only (both field groups are always
+   present in the markup so the form works with JS disabled — see the
+   `entryType` radio + sibling-selector styling). #}
+{% from 'partials/components.njk' import pageHeader, card %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-4 max-w-2xl') %}
+<form method="post" action="{{ action }}" class="space-y-4">
+  <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+
+  {%- if errors.general %}<p class="text-[11px] text-red-300">{{ errors.general }}</p>{% endif %}
+
+  {%- if not isEdit %}
+  <div class="flex gap-4 text-sm">
+    <label class="flex items-center gap-1.5"><input type="radio" name="entryType" value="flight" {% if not isFstd %}checked{% endif %}> {{ t.translate('fleet.entry_type_flight') }}</label>
+    <label class="flex items-center gap-1.5"><input type="radio" name="entryType" value="fstd" {% if isFstd %}checked{% endif %}> {{ t.translate('fleet.entry_type_fstd') }}</label>
+  </div>
+  {%- else %}
+  <input type="hidden" name="entryType" value="{{ 'fstd' if isFstd else 'flight' }}">
+  {%- endif %}
+
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label for="flightDate" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.flight_date') }}</label>
+      <input type="date" id="flightDate" name="flightDate" value="{{ values.flightDate }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.flightDate %}<p class="mt-1 text-[11px] text-red-300">{{ errors.flightDate }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="pilotFunction" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.pilot_function') }}</label>
+      <select id="pilotFunction" name="pilotFunction" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white">
+        {%- for f in ['pic','spic','sic','dual','instructor'] %}
+        <option value="{{ f }}" {% if values.pilotFunction === f %}selected{% endif %}>{{ t.translate('fleet.function.' + f) }}</option>
+        {%- endfor %}
+      </select>
+      {%- if errors.pilotFunction %}<p class="mt-1 text-[11px] text-red-300">{{ errors.pilotFunction }}</p>{% endif %}
+    </div>
+  </div>
+
+  {%- if not isFstd %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label for="aircraftId" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.aircraft') }}</label>
+      <select id="aircraftId" name="aircraftId" class="touch-target w-full rounded border border-edge bg-surface px-2 text-sm text-white">
+        {%- for a in aircraftOptions %}
+        <option value="{{ a.id }}" {% if values.aircraftId === a.id %}selected{% endif %}>{{ a.registration }}</option>
+        {%- endfor %}
+      </select>
+      {%- if errors.aircraftId %}<p class="mt-1 text-[11px] text-red-300">{{ errors.aircraftId }}</p>{% endif %}
+    </div>
+  </div>
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label for="departureAerodrome" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.departure') }}</label>
+      <input type="text" id="departureAerodrome" name="departureAerodrome" value="{{ values.departureAerodrome }}" maxlength="4" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data uppercase">
+      {%- if errors.departureAerodrome %}<p class="mt-1 text-[11px] text-red-300">{{ errors.departureAerodrome }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="arrivalAerodrome" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.arrival') }}</label>
+      <input type="text" id="arrivalAerodrome" name="arrivalAerodrome" value="{{ values.arrivalAerodrome }}" maxlength="4" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data uppercase">
+      {%- if errors.arrivalAerodrome %}<p class="mt-1 text-[11px] text-red-300">{{ errors.arrivalAerodrome }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="departureTime" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.departure_time') }}</label>
+      <input type="time" id="departureTime" name="departureTime" value="{{ values.departureTime }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="arrivalTime" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.arrival_time') }}</label>
+      <input type="time" id="arrivalTime" name="arrivalTime" value="{{ values.arrivalTime }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+  </div>
+  {%- else %}
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label for="deviceType" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.device_type') }}</label>
+      <input type="text" id="deviceType" name="deviceType" value="{{ values.deviceType }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white">
+      {%- if errors.deviceType %}<p class="mt-1 text-[11px] text-red-300">{{ errors.deviceType }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="deviceQualification" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.device_qualification') }}</label>
+      <input type="text" id="deviceQualification" name="deviceQualification" value="{{ values.deviceQualification }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white">
+    </div>
+  </div>
+  {%- endif %}
+
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+    <div>
+      <label for="totalTime" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.total_time') }}</label>
+      <input type="text" inputmode="decimal" id="totalTime" name="totalTime" value="{{ values.totalTime }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.totalTime %}<p class="mt-1 text-[11px] text-red-300">{{ errors.totalTime }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="nightTime" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.night_time') }}</label>
+      <input type="text" inputmode="decimal" id="nightTime" name="nightTime" value="{{ values.nightTime }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.nightTime %}<p class="mt-1 text-[11px] text-red-300">{{ errors.nightTime }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="ifrTime" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.ifr_time') }}</label>
+      <input type="text" inputmode="decimal" id="ifrTime" name="ifrTime" value="{{ values.ifrTime }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.ifrTime %}<p class="mt-1 text-[11px] text-red-300">{{ errors.ifrTime }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="crossCountryTime" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.cross_country_time') }}</label>
+      <input type="text" inputmode="decimal" id="crossCountryTime" name="crossCountryTime" value="{{ values.crossCountryTime }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="instrumentTime" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.instrument_time') }}</label>
+      <input type="text" inputmode="decimal" id="instrumentTime" name="instrumentTime" value="{{ values.instrumentTime }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+  </div>
+
+  {%- if not isFstd %}
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div>
+      <label for="hobbsOut" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.hobbs_out') }}</label>
+      <input type="text" inputmode="decimal" id="hobbsOut" name="hobbsOut" value="{{ values.hobbsOut }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="hobbsIn" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.hobbs_in') }}</label>
+      <input type="text" inputmode="decimal" id="hobbsIn" name="hobbsIn" value="{{ values.hobbsIn }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.hobbsIn %}<p class="mt-1 text-[11px] text-red-300">{{ errors.hobbsIn }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="tachOut" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.tach_out') }}</label>
+      <input type="text" inputmode="decimal" id="tachOut" name="tachOut" value="{{ values.tachOut }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="tachIn" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.tach_in') }}</label>
+      <input type="text" inputmode="decimal" id="tachIn" name="tachIn" value="{{ values.tachIn }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.tachIn %}<p class="mt-1 text-[11px] text-red-300">{{ errors.tachIn }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="fuelUplift" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.fuel_uplift') }}</label>
+      <input type="text" inputmode="decimal" id="fuelUplift" name="fuelUplift" value="{{ values.fuelUplift }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="fuelBurn" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.fuel_burn') }}</label>
+      <input type="text" inputmode="decimal" id="fuelBurn" name="fuelBurn" value="{{ values.fuelBurn }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="dayLandings" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.day_landings') }}</label>
+      <input type="number" min="0" id="dayLandings" name="dayLandings" value="{{ values.dayLandings }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="nightLandings" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.night_landings') }}</label>
+      <input type="number" min="0" id="nightLandings" name="nightLandings" value="{{ values.nightLandings }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="passengers" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.passengers') }}</label>
+      <input type="number" min="0" id="passengers" name="passengers" value="{{ values.passengers }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+  </div>
+  {%- endif %}
+
+  <div>
+    <label for="remarks" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.remarks') }}</label>
+    <textarea id="remarks" name="remarks" rows="2" class="touch-target w-full rounded border border-edge bg-surface px-3 py-2 text-sm text-white">{{ values.remarks }}</textarea>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit" class="touch-target px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('fleet.save') }}</button>
+    <a href="{{ cancelHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('fleet.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}

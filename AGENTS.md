@@ -65,10 +65,14 @@ questions.
 ## What this repository is
 
 A **server-rendered** Node.js + PostgreSQL application for general-aviation
-pre-flight decision support (Spanish and Portuguese first). It is a **skeleton**:
-feature behavior (weather decoding, checklists, risk, logbook, documents) is
-deferred to later changes. `diseno/` is the **read-only** Figma prototype and
-the visual reference — never modify it.
+pre-flight decision support (Spanish and Portuguese first). Weather decoding
+(`weather-notams-page`), pre-flight risk assessment (`preflight-risk-
+assessment` / `flight-intent`), the aircraft/logbook/maintenance/W&B/engine-
+data group (`aircraft-fleet` and siblings), and the locale-root pre-flight
+brief (`home-dashboard`) are implemented; checklists and the documents/AIS
+assistant remain **skeleton placeholders**, deferred to later changes.
+`diseno/` is the **read-only** Figma prototype and the visual reference —
+never modify it.
 
 Two runtimes share the same validated configuration schema
 (`src/platform/config/schema.ts`):

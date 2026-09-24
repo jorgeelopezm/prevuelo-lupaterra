@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- PRE-VUELO brand tile: the sidebar's plane icon on the accent colour. -->
+  <rect width="32" height="32" rx="6" fill="#2563eb"/>
+  <g transform="translate(4 4)" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+  </g>
+</svg>

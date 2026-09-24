@@ -21,6 +21,9 @@ function makeConfig() {
     SESSION_SECRET: SECRET,
     AUTH_MAX_FAILED_ATTEMPTS: '3',
     AUTH_FAILURE_WINDOW_MINUTES: '15',
+    // These tests drive the registration flow; the disabled state has its own
+    // tests in auth-screens.test.ts.
+    REGISTRATION_ENABLED: 'true',
   })
 }
 
@@ -163,6 +166,7 @@ test('sign-out destroys the server-side session and the old cookie no longer aut
     payload: formBody({ csrfToken: csrf }),
   })
   assert.equal(out.statusCode, 302)
+  assert.equal(out.headers.location, '/es/auth/sign-in', 'sign-out lands on sign-in')
   assert.equal(pool.sessions.length, 0, 'server-side session destroyed')
 
   // Reusing the prior cookie no longer authenticates: a protected route redirects.
@@ -195,7 +199,9 @@ test('failed sign-in is generic and does not disclose account existence', async 
   const unknown = await post('no-such@example.com')
   assert.equal(known.statusCode, 401)
   assert.equal(unknown.statusCode, 401)
-  const alertOf = (html: string) => /<p role="alert">([^<]+)<\/p>/.exec(html)?.[1] ?? ''
+  // The alert carries an icon span, then the message text in its own span.
+  const alertOf = (html: string) =>
+    /role="alert"[\s\S]*?<\/span><span>([^<]+)<\/span>/.exec(html)?.[1] ?? ''
   const knownAlert = alertOf(known.body)
   const unknownAlert = alertOf(unknown.body)
   assert.equal(knownAlert, unknownAlert, 'the failure message does not disclose account existence')
@@ -224,6 +230,81 @@ test('sign-in rate limiting rejects beyond the threshold with a non-disclosing m
   const limited = await attempt()
   assert.equal(limited.statusCode, 429)
   assert.match(limited.body, /más tarde|later/i)
+  await app.close()
+})
+
+test("sign-in rate limiting keys the per-source bucket off the trusted proxy's X-Forwarded-For, not the shared loopback peer (task 5.12b)", async () => {
+  const app = await makeApp()
+  const page = await app.inject({ method: 'GET', url: '/es/auth/sign-in' })
+  const csrf = csrfFrom(page.body)
+  const cookie = cookieHeader(page)
+
+  // Every request in production arrives from Caddy on 127.0.0.1 (D73); the
+  // real distinct visitor is only known via X-Forwarded-For. One failed
+  // attempt each from three different forwarded clients must not exhaust a
+  // fourth, unrelated client's own bucket -- if it did, req.ip would be
+  // reading the shared proxy address instead of the trusted forwarded hop.
+  const failFrom = (forwardedFor: string, email: string) =>
+    app.inject({
+      method: 'POST',
+      url: '/es/auth/sign-in',
+      remoteAddress: '127.0.0.1',
+      headers: {
+        cookie,
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-forwarded-for': forwardedFor,
+      },
+      payload: formBody({ email, password: 'wrong-pass-123', csrfToken: csrf }),
+    })
+
+  const first = await failFrom('203.0.113.10', 'a@example.com')
+  const second = await failFrom('203.0.113.11', 'b@example.com')
+  const third = await failFrom('203.0.113.12', 'c@example.com')
+  assert.deepEqual([first.statusCode, second.statusCode, third.statusCode], [401, 401, 401])
+
+  const fourth = await failFrom('203.0.113.13', 'd@example.com')
+  assert.equal(
+    fourth.statusCode,
+    401,
+    "a fourth, unrelated forwarded client must not be locked out by three other clients' failures",
+  )
+  await app.close()
+})
+
+test('sign-in rate limiting does not trust X-Forwarded-For from a peer other than the platform proxy', async () => {
+  const app = await makeApp()
+  const page = await app.inject({ method: 'GET', url: '/es/auth/sign-in' })
+  const csrf = csrfFrom(page.body)
+  const cookie = cookieHeader(page)
+
+  // A caller connecting directly (not via Caddy's loopback hop) cannot forge
+  // its rate-limit bucket by setting X-Forwarded-For -- untrusted peers are
+  // ignored, so three failures from three forged addresses must still land
+  // in the one real bucket for that untrusted peer.
+  const attempt = (email: string) =>
+    app.inject({
+      method: 'POST',
+      url: '/es/auth/sign-in',
+      remoteAddress: '203.0.113.99',
+      headers: {
+        cookie,
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-forwarded-for': '198.51.100.1',
+      },
+      payload: formBody({ email, password: 'wrong-pass-123', csrfToken: csrf }),
+    })
+
+  const codes: number[] = []
+  codes.push((await attempt('e@example.com')).statusCode)
+  codes.push((await attempt('f@example.com')).statusCode)
+  codes.push((await attempt('g@example.com')).statusCode)
+  assert.deepEqual(codes, [401, 401, 401])
+  const fourth = await attempt('h@example.com')
+  assert.equal(
+    fourth.statusCode,
+    429,
+    "an untrusted direct peer's forged X-Forwarded-For must not grant it a fresh bucket per request",
+  )
   await app.close()
 })
 

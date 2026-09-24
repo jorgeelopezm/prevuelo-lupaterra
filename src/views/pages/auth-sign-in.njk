@@ -1,0 +1,49 @@
+{#
+  Sign-in screen (identity-access: "Sign-in screen presentation"). It is
+  rendered inside auth-layout.njk. Each control is at least 44px tall (min-h-11
+  / touch-target). Inputs use a 16px font (text-base) so iOS does not zoom on
+  focus. Errors are stated in text inside a role="alert" element that the
+  inputs reference. Works with scripting disabled.
+#}
+{% from 'partials/components.njk' import card %}
+{% from 'partials/icons.njk' import icon %}
+{% call card('p-5 sm:p-6') %}
+  <h1 class="text-xl font-bold text-white">{{ t.translate('auth.sign_in_title') }}</h1>
+  <p class="text-sm text-slate-400 mt-1">{{ t.translate('auth.sign_in_subtitle') }}</p>
+
+  {%- if error %}
+  <p role="alert" id="auth-error" class="mt-4 flex items-start gap-2 rounded border border-red-700/60 bg-red-900/40 px-3 py-2.5 text-sm text-red-200">
+    <span class="mt-0.5 flex-shrink-0">{{ icon('alert') }}</span><span>{{ error }}</span>
+  </p>
+  {%- endif %}
+
+  <form method="post" action="{{ action }}" class="mt-5 flex flex-col gap-4">
+    <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+    <input type="hidden" name="next" value="{{ next }}">
+
+    <div class="flex flex-col gap-1.5">
+      <label for="sign-in-email" class="text-sm font-medium text-slate-300">{{ t.translate('auth.email') }}</label>
+      <input id="sign-in-email" type="email" name="email" value="{{ values.email }}"
+        autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" required
+        {%- if error %} aria-invalid="true" aria-describedby="auth-error"{% endif %}
+        class="w-full min-h-11 rounded border border-edge bg-canvas px-3 text-base text-white placeholder-slate-500 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40">
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label for="sign-in-password" class="text-sm font-medium text-slate-300">{{ t.translate('auth.password') }}</label>
+      <input id="sign-in-password" type="password" name="password"
+        autocomplete="current-password" required
+        {%- if error %} aria-invalid="true" aria-describedby="auth-error"{% endif %}
+        class="w-full min-h-11 rounded border border-edge bg-canvas px-3 text-base text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40">
+    </div>
+
+    <button type="submit" class="touch-target w-full min-h-11 rounded bg-accent px-4 text-base font-semibold text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-accent-soft">{{ t.translate('auth.sign_in') }}</button>
+  </form>
+{% endcall %}
+
+{%- if registerHref %}
+<p class="mt-4 flex flex-wrap items-center justify-center gap-x-1 text-sm text-slate-400">
+  <span>{{ t.translate('auth.no_account') }}</span>
+  <a href="{{ registerHref }}" class="touch-target px-2 font-medium text-blue-300 hover:text-blue-200">{{ t.translate('auth.register') }}</a>
+</p>
+{%- endif %}

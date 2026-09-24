@@ -1,0 +1,15 @@
+{# One run item row (checklist-runs: "Working without client scripting" —
+   a real <form method="post"> with a submit button carrying the htmx
+   attributes, so the toggle still round-trips without JavaScript). Swappable
+   on its own: the toggle route re-renders exactly this partial for the
+   affected row. #}
+<form method="post" action="{{ item.toggleHref }}" hx-post="{{ item.toggleHref }}" hx-target="closest li" hx-swap="outerHTML" class="flex items-center gap-3 py-1">
+  <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+  <button type="submit" class="touch-target flex items-center gap-3 flex-1 text-left" aria-pressed="{{ item.checked }}">
+    <span class="w-5 h-5 rounded border flex items-center justify-center shrink-0 {% if item.checked %}bg-emerald-600 border-emerald-500{% else %}border-edge{% endif %}" aria-hidden="true">
+      {%- if item.checked %}&#10003;{% endif -%}
+    </span>
+    <span class="text-sm {% if item.checked %}text-slate-500 line-through{% else %}text-slate-200{% endif %}">{{ item.text }}</span>
+    <span class="sr-only">{% if item.checked %}{{ t.translate('checklist.item_confirmed') }}{% else %}{{ t.translate('checklist.item_unconfirmed') }}{% endif %}</span>
+  </button>
+</form>

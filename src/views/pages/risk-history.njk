@@ -1,0 +1,39 @@
+{# Read-only history of every risk assessment the pilot has recorded
+   (preflight-risk-assessment spec: "Re-assessment creates a new record
+   rather than replacing the old one" / "Records are not editable" — no
+   edit/delete control is offered here, only links to each result). #}
+{% from 'partials/components.njk' import pageHeader, card, emptyState, statusChip %}
+
+{{ pageHeader(title) }}
+
+{% if assessments.length === 0 %}
+  {% call card('p-4') %}
+  {{ emptyState(t.translate('risk.history_empty'), '', 'shield') }}
+  {% endcall %}
+{% else %}
+  <div class="space-y-3">
+    {%- for a in assessments %}
+    {% call card('p-4') %}
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        {%- if a.flightIntent %}
+        <div class="text-sm text-white font-data">{{ a.flightIntent.departureIcao }} &rarr; {{ a.flightIntent.destinationIcao }}</div>
+        <div class="text-xs text-slate-400">{{ a.flightIntent.plannedDate }}</div>
+        {%- endif %}
+      </div>
+      <div class="flex items-center gap-3">
+        {%- if a.verdict === 'low' %}{{ statusChip(t.translate('risk.low'), 'good') }}
+        {%- elif a.verdict === 'medium' %}{{ statusChip(t.translate('risk.medium'), 'warn') }}
+        {%- else %}{{ statusChip(t.translate('risk.high'), 'bad') }}{% endif -%}
+        <span class="text-xs text-slate-500 font-data">{{ a.submittedAt | intlUtcDateTime }}</span>
+        <a href="{{ a.resultHref }}" class="touch-target inline-flex items-center px-3 rounded border border-edge text-xs text-slate-300 whitespace-nowrap">{{ t.translate('btn.open') }}</a>
+      </div>
+    </div>
+    {% endcall %}
+    {%- endfor %}
+  </div>
+{% endif %}
+
+<div class="mt-4">
+  <a href="{{ backHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('risk.back_to_risk') }}</a>
+</div>

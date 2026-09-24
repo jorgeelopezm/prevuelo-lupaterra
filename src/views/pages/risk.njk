@@ -1,0 +1,29 @@
+{# Risk-assessment main screen (preflight-risk-assessment / flight-intent
+   capabilities): the pilot's flight plans, each an entry point to start a
+   new assessment, plus a link to the full history. #}
+{% from 'partials/components.njk' import pageHeader, card, emptyState %}
+
+{{ pageHeader(title, t.translate('risk.subtitle')) }}
+
+{% if flightIntents.length === 0 %}
+  {% call card('p-4') %}
+  {{ emptyState(t.translate('risk.no_flight_intents'), t.translate('risk.no_flight_intents_message'), 'shield') }}
+  <div class="flex justify-center">
+    <a href="{{ newFlightIntentHref }}" class="touch-target inline-flex items-center px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('risk.new_flight_intent') }}</a>
+  </div>
+  {% endcall %}
+{% else %}
+  <div class="flex justify-between items-center mb-3">
+    <a href="{{ newFlightIntentHref }}" class="touch-target inline-flex items-center px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('risk.new_flight_intent') }}</a>
+    <a href="{{ historyHref }}" class="text-sm text-slate-300 underline">{{ t.translate('risk.view_history') }}</a>
+  </div>
+  <div class="space-y-3">
+    {%- for intent in flightIntents %}
+    {% call card('p-4 flex items-center justify-between gap-4') %}
+      <div class="text-sm text-white font-data">{{ intent.departureIcao }} &rarr; {{ intent.destinationIcao }}</div>
+      <div class="text-xs text-slate-400">{{ intent.plannedDate }}</div>
+      <a href="{{ intent.startAssessmentHref }}" class="touch-target inline-flex items-center px-3 rounded bg-accent text-white text-xs font-semibold whitespace-nowrap">{{ t.translate('risk.start_assessment') }}</a>
+    {% endcall %}
+    {%- endfor %}
+  </div>
+{% endif %}

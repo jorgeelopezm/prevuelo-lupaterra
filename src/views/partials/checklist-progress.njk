@@ -1,0 +1,20 @@
+{# Counter, progress bar, and all-complete banner — the run screen's
+   `hx-swap-oob` target (checklist-runs: "Confirming an item persists
+   immediately" — the response re-renders the completion count together with
+   the toggled row). Completion is stated in text, never by color alone
+   (checklist-runs: "Completion is not color-only"). #}
+{% from 'partials/components.njk' import progressBar %}
+
+<div class="flex items-center justify-between gap-3 mb-2">
+  <span class="text-xs font-data text-slate-400">{{ progress.checkedCount }} / {{ progress.totalCount }} {{ t.translate('checklist.items_done') }}</span>
+  {%- if not progress.completed %}
+  <form method="post" action="{{ progress.resetHref }}">
+    <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+    <button type="submit" class="touch-target px-3 rounded border border-edge text-xs text-slate-300">{{ t.translate('checklist.reset') }}</button>
+  </form>
+  {%- endif %}
+</div>
+{{ progressBar(progress.checkedCount, progress.totalCount, 'good' if progress.completed else 'neutral') }}
+{%- if progress.completed %}
+<p class="mt-2 text-sm font-semibold text-emerald-300">{{ t.translate('checklist.all_done') }}</p>
+{%- endif %}

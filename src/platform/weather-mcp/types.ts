@@ -10,7 +10,8 @@ export type WeatherLocale = 'es' | 'pt' | 'en'
 
 export interface WeatherProvenance {
   provider: string
-  issuedAt: string
+  /** `null` when no report in the result carries a time. */
+  issuedAt: string | null
   retrievedAt: string
   cached: boolean
   cacheAgeSeconds: number
@@ -38,16 +39,26 @@ export interface TafResult extends WeatherProvenance {
   entries: TafReport[]
 }
 
+/**
+ * Whether a NOTAM/SIGMET list is the full set in force (`complete`) or only
+ * what the provider returned (`unknown`). Optional on the wire: an older MCP
+ * build or a pre-deploy cached result omits it, and absence means `unknown`.
+ */
+export type ListCoverage = 'complete' | 'unknown'
+
 export interface NotamEntry {
   id: string
   text: string
-  startAt: string
-  endAt: string
+  /** `null` when the provider does not state it. */
+  startAt: string | null
+  /** `null` when the provider does not state it. */
+  endAt: string | null
 }
 
 export interface NotamReport {
   icao: string
   notams: NotamEntry[]
+  coverage?: ListCoverage
 }
 
 export interface NotamResult extends WeatherProvenance {
@@ -57,13 +68,16 @@ export interface NotamResult extends WeatherProvenance {
 export interface SigmetEntry {
   header: string
   text: string
-  startAt: string
-  endAt: string
+  /** `null` when the provider does not state it. */
+  startAt: string | null
+  /** `null` when the provider does not state it. */
+  endAt: string | null
 }
 
 export interface SigmetReport {
   fir: string
   sigmets: SigmetEntry[]
+  coverage?: ListCoverage
 }
 
 export interface SigmetResult extends WeatherProvenance {

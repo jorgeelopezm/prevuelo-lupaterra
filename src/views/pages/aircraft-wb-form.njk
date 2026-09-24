@@ -1,0 +1,81 @@
+{# Weight & balance profile form (aircraft-fleet capability). A fixed number
+   of load-station and CG-envelope-point rows (no JavaScript, so no dynamic
+   add/remove row list) — a blank row is simply not stored. #}
+{% from 'partials/components.njk' import pageHeader, card %}
+
+{{ pageHeader(title) }}
+
+{% call card('p-4 max-w-3xl') %}
+<form method="post" action="{{ action }}" class="space-y-4">
+  <input type="hidden" name="csrfToken" value="{{ csrfToken }}">
+
+  {%- if errors.general %}<p class="text-[11px] text-red-300">{{ errors.general }}</p>{% endif %}
+
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div>
+      <label for="emptyWeight" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_empty_weight') }}</label>
+      <input type="text" inputmode="decimal" id="emptyWeight" name="emptyWeight" value="{{ profile.emptyWeight }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.emptyWeight %}<p class="mt-1 text-[11px] text-red-300">{{ errors.emptyWeight }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="emptyWeightArm" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_empty_weight_arm') }}</label>
+      <input type="text" inputmode="decimal" id="emptyWeightArm" name="emptyWeightArm" value="{{ profile.emptyWeightArm }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="mtow" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_mtow') }}</label>
+      <input type="text" inputmode="decimal" id="mtow" name="mtow" value="{{ profile.mtow }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+      {%- if errors.mtow %}<p class="mt-1 text-[11px] text-red-300">{{ errors.mtow }}</p>{% endif %}
+    </div>
+    <div>
+      <label for="mlw" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_mlw') }}</label>
+      <input type="text" inputmode="decimal" id="mlw" name="mlw" value="{{ profile.mlw }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="mzfw" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_mzfw') }}</label>
+      <input type="text" inputmode="decimal" id="mzfw" name="mzfw" value="{{ profile.mzfw }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="usableFuelQty" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_usable_fuel_qty') }}</label>
+      <input type="text" inputmode="decimal" id="usableFuelQty" name="usableFuelQty" value="{{ profile.usableFuelQty }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="usableFuelArm" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_usable_fuel_arm') }}</label>
+      <input type="text" inputmode="decimal" id="usableFuelArm" name="usableFuelArm" value="{{ profile.usableFuelArm }}" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white font-data">
+    </div>
+    <div>
+      <label for="massUnit" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_mass_unit') }}</label>
+      <input type="text" id="massUnit" name="massUnit" value="{{ profile.massUnit }}" placeholder="kg / lb" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white">
+    </div>
+    <div>
+      <label for="lengthUnit" class="block text-xs font-semibold text-slate-300 mb-1">{{ t.translate('fleet.wb_length_unit') }}</label>
+      <input type="text" id="lengthUnit" name="lengthUnit" value="{{ profile.lengthUnit }}" placeholder="mm / in" class="touch-target w-full rounded border border-edge bg-surface px-3 text-sm text-white">
+    </div>
+  </div>
+
+  <fieldset class="border border-edge rounded p-3">
+    <legend class="text-xs font-semibold text-slate-300 px-1">{{ t.translate('fleet.wb_load_stations') }}</legend>
+    {%- for i in range(0, rows.stations) %}
+    <div class="grid grid-cols-3 gap-2 mb-2">
+      <input type="text" name="station_name_{{ i }}" value="{{ profile.loadStations[i].name if profile.loadStations[i] }}" placeholder="{{ t.translate('fleet.wb_station_name') }}" class="touch-target rounded border border-edge bg-surface px-2 text-sm text-white">
+      <input type="text" inputmode="decimal" name="station_arm_{{ i }}" value="{{ profile.loadStations[i].arm if profile.loadStations[i] }}" placeholder="{{ t.translate('fleet.wb_station_arm') }}" class="touch-target rounded border border-edge bg-surface px-2 text-sm text-white font-data">
+      <input type="text" inputmode="decimal" name="station_max_weight_{{ i }}" value="{{ profile.loadStations[i].maxWeight if profile.loadStations[i] }}" placeholder="{{ t.translate('fleet.wb_station_max_weight') }}" class="touch-target rounded border border-edge bg-surface px-2 text-sm text-white font-data">
+    </div>
+    {%- endfor %}
+  </fieldset>
+
+  <fieldset class="border border-edge rounded p-3">
+    <legend class="text-xs font-semibold text-slate-300 px-1">{{ t.translate('fleet.wb_envelope_points') }}</legend>
+    {%- for i in range(0, rows.points) %}
+    <div class="grid grid-cols-2 gap-2 mb-2">
+      <input type="text" inputmode="decimal" name="point_weight_{{ i }}" value="{{ profile.envelopePoints[i].weight if profile.envelopePoints[i] }}" placeholder="{{ t.translate('fleet.wb_point_weight') }}" class="touch-target rounded border border-edge bg-surface px-2 text-sm text-white font-data">
+      <input type="text" inputmode="decimal" name="point_cg_{{ i }}" value="{{ profile.envelopePoints[i].cg if profile.envelopePoints[i] }}" placeholder="{{ t.translate('fleet.wb_point_cg') }}" class="touch-target rounded border border-edge bg-surface px-2 text-sm text-white font-data">
+    </div>
+    {%- endfor %}
+  </fieldset>
+
+  <div class="flex gap-3">
+    <button type="submit" class="touch-target px-4 rounded bg-accent text-white text-sm font-semibold">{{ t.translate('fleet.save') }}</button>
+    <a href="{{ cancelHref }}" class="touch-target inline-flex items-center px-4 rounded border border-edge text-sm text-slate-300">{{ t.translate('fleet.cancel') }}</a>
+  </div>
+</form>
+{% endcall %}

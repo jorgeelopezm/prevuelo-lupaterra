@@ -185,10 +185,18 @@ test('the selected provider is logged at startup on stderr', async () => {
       check()
     })
     assert.match(stderr, /selected weather provider/)
-    assert.match(stderr, /"mock"/)
+    assert.match(stderr, /"weatherProvider":"mock"/)
+    assert.match(stderr, /"notamProvider":"mock"/, 'the NOTAM provider is stated too')
   } finally {
     await stop(child)
   }
+})
+
+test('awc weather with a separate NOTAM provider builds without a weather credential', () => {
+  const config = loadConfig({ WEATHER_PROVIDER: 'awc', NOTAM_PROVIDER: 'mock' })
+  const { provider, notamProvider } = buildWeatherServer(config)
+  assert.equal(provider.id, 'awc')
+  assert.equal(notamProvider.id, 'mock')
 })
 
 test('http transport serves an MCP client over the configured port', async () => {
@@ -220,6 +228,37 @@ test('http transport serves an MCP client over the configured port', async () =>
   } finally {
     await client.close()
     await transport.close()
+    await handle.close()
+  }
+})
+
+test('GET /health is a plain 2xx liveness probe, distinct from the MCP endpoint', async () => {
+  const config = loadConfig({ WEATHER_PROVIDER: 'mock' })
+  const { server } = buildWeatherServer(config)
+  const handle = await serveHttp(server, { host: '127.0.0.1', port: 0, logger: stubLogger() })
+  const address = handle.httpServer.address()
+  const port = typeof address === 'object' && address ? address.port : 0
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/health`)
+    assert.equal(response.status, 200)
+    const body = (await response.json()) as { status: string }
+    assert.equal(body.status, 'ok')
+  } finally {
+    await handle.close()
+  }
+})
+
+test('GET on any other path is still 405, unaffected by the /health carve-out', async () => {
+  const config = loadConfig({ WEATHER_PROVIDER: 'mock' })
+  const { server } = buildWeatherServer(config)
+  const handle = await serveHttp(server, { host: '127.0.0.1', port: 0, logger: stubLogger() })
+  const address = handle.httpServer.address()
+  const port = typeof address === 'object' && address ? address.port : 0
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/mcp`)
+    assert.equal(response.status, 405)
+    assert.equal(response.headers.get('allow'), 'POST, DELETE')
+  } finally {
     await handle.close()
   }
 })

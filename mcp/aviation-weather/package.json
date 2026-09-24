@@ -8,7 +8,9 @@
     "node": "^22.0.0"
   },
   "scripts": {
-    "start": "node --env-file-if-exists=../../.env --import tsx src/index.ts",
+    "dev": "node --env-file-if-exists=../../.env --import tsx src/index.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "start": "node --env-file-if-exists=../../.env ../../dist/mcp/mcp/aviation-weather/src/index.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "lint": "eslint ."

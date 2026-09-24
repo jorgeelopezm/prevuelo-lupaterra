@@ -11,8 +11,12 @@ export type WeatherLocale = 'es' | 'pt' | 'en'
 export interface WeatherProvenance {
   /** Provider identifier, e.g. `mock`, `aemet`, `ipma`, `ead`. */
   provider: string
-  /** ISO 8601 issue (TAF/NOTAM/SIGMET) or observation (METAR) time. */
-  issuedAt: string
+  /**
+   * ISO 8601 issue (TAF/NOTAM/SIGMET) or observation (METAR) time; for a
+   * batched result, the latest across its reports. `null` when no report in
+   * the result carries a time — never substituted with the retrieval time.
+   */
+  issuedAt: string | null
   /** ISO 8601 time the data was retrieved from the provider (or its cache). */
   retrievedAt: string
   /** Whether this result was served from the response cache. */
@@ -50,21 +54,32 @@ export interface TafResult extends WeatherProvenance {
   entries: TafReport[]
 }
 
+/**
+ * Whether a NOTAM/SIGMET list is asserted to be the full set in force.
+ * `complete`: the provider vouches for completeness, so an empty list means
+ * none are in force. `unknown`: it cannot (best-effort match, region it does
+ * not authoritatively cover) — an empty list only means "none returned".
+ * Providers default to `unknown` and opt in to `complete`.
+ */
+export type ListCoverage = 'complete' | 'unknown'
+
 export interface NotamEntry {
   /** NOTAM identifier, e.g. `A1234/26`. */
   id: string
   /** Free-text NOTAM body. */
   text: string
-  /** ISO 8601 start of validity. */
-  startAt: string
-  /** ISO 8601 end of validity. */
-  endAt: string
+  /** ISO 8601 start of validity; `null` when the provider does not state it — never substituted. */
+  startAt: string | null
+  /** ISO 8601 end of validity; `null` when the provider does not state it — never substituted. */
+  endAt: string | null
 }
 
 export interface NotamReport {
   icao: string
-  /** Empty when the provider holds no NOTAMs for the aerodrome. */
+  /** Empty when the provider returned no NOTAMs for the aerodrome. */
   notams: NotamEntry[]
+  /** Whether an empty list means "none in force" (see `ListCoverage`). */
+  coverage: ListCoverage
 }
 
 export interface NotamResult extends WeatherProvenance {
@@ -76,16 +91,18 @@ export interface SigmetEntry {
   header: string
   /** Free-text SIGMET body. */
   text: string
-  /** ISO 8601 start of validity. */
-  startAt: string
-  /** ISO 8601 end of validity. */
-  endAt: string
+  /** ISO 8601 start of validity; `null` when the provider does not state it — never substituted. */
+  startAt: string | null
+  /** ISO 8601 end of validity; `null` when the provider does not state it — never substituted. */
+  endAt: string | null
 }
 
 export interface SigmetReport {
   fir: string
-  /** Empty when the provider holds no SIGMETs for the FIR. */
+  /** Empty when the provider returned no SIGMETs for the FIR. */
   sigmets: SigmetEntry[]
+  /** Whether an empty list means "none in force" (see `ListCoverage`). */
+  coverage: ListCoverage
 }
 
 export interface SigmetResult extends WeatherProvenance {
