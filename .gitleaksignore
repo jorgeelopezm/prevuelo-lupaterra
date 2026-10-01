@@ -1,0 +1,4 @@
+# Test fixture password (wrong-pass-123) used to exercise failed sign-in; not a real secret.
+a08fc2d2d8615c6d1b6565ff2a0c5b9684564541:src/server/auth/auth-plugin.test.ts:generic-api-key:257
+a08fc2d2d8615c6d1b6565ff2a0c5b9684564541:src/server/auth/auth-plugin.test.ts:generic-api-key:294
+e1c905c2a6ea8e715902146b78f054fe96ea5058:src/server/auth/auth-plugin.test.ts:generic-api-key:218
