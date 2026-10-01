@@ -1,15 +1,33 @@
 # GA Core
 
-Core skeleton for a general aviation pre-flight decision-support tool, built for
+Core of a general aviation pre-flight decision-support tool, built for
 Spanish- and Portuguese-speaking GA pilots. This is a **server-rendered** Node.js +
 PostgreSQL application (no SPA, no client-side router). It ships alongside the
 read-only `diseno/` prototype, which remains the visual reference.
 
-This repository contains **only the skeleton**: the server shell, locale routing,
-authentication, the database baseline, the retrieval (RAG) seam, and a runnable
-MCP server for aeronautical data backed by a mock provider. Feature behavior
-(weather decoding, checklists, risk, logbook, documents) is deferred to later
-changes.
+> [!WARNING]
+> **Advisory only. Not for operational use.** This is not a certified aviation
+> product and does not claim or imply DO-178B/DO-178C compliance or any other
+> certification. It does not replace official weather briefings, NOTAMs,
+> the aircraft's flight manual, or the pilot in command's judgment. Mock
+> providers serve **sample data**, and the app labels it that way. Always check
+> official sources before flight.
+
+## Status
+
+| Area | Status |
+| --- | --- |
+| Pre-flight brief (home dashboard) | Implemented |
+| Weather & NOTAMs: METAR, TAF, NOTAM, SIGMET with raw and decoded views | Implemented |
+| Pre-flight risk assessment / flight intent | Implemented |
+| Aircraft, logbook, maintenance, weight & balance, engine data | Implemented |
+| Checklists | Placeholder |
+| Documents / AIS assistant | Placeholder |
+
+The platform underneath — server shell, locale routing, authentication, the
+database baseline, the retrieval (RAG) seam, and a runnable MCP server for
+aeronautical data — is in place. Placeholder screens render an explicit,
+localized notice.
 
 ## Layout
 
@@ -23,6 +41,7 @@ changes.
 | `src/assets/` | CSS/images processed by the asset build |
 | `db/` | Versioned migrations and the seed routine |
 | `mcp/aviation-weather/` | Standalone aviation weather MCP server (npm workspace) |
+| `openspec/` | Requirements, designs and change history |
 | `diseno/` | **Read-only** Figma prototype reference. Never modified. |
 
 ## Prerequisites
@@ -61,7 +80,7 @@ Open http://localhost:3000 — the root path redirects to your resolved locale
 (`/es` by default).
 
 The seed routine creates a development pilot account so you can sign in and walk
-all six feature screens:
+all six feature screens. It exists only in your local database:
 
 - **email:** `piloto@ga-core.local`
 - **password:** `piloto-dev-1234`
@@ -84,10 +103,12 @@ descriptive, secret-free error naming the offending variable.
 | `SESSION_TTL_HOURS` | `168` | Absolute session lifetime |
 | `AUTH_MAX_FAILED_ATTEMPTS` | `5` | Sign-in attempts per account/source per window |
 | `AUTH_FAILURE_WINDOW_MINUTES` | `15` | Rate-limit window for failed sign-ins |
+| `REGISTRATION_ENABLED` | `false` | Public self-registration (off: no sign-up link, no account creation) |
 | `EMBEDDING_PROVIDER` | `mock` | `mock` (default) — real providers deferred |
 | `EMBEDDING_DIMENSIONS` | `768` | pgvector dimensionality (fixed after migration 003) |
 | `EMBEDDING_API_KEY` | — | Required by a non-mock embedding provider |
-| `WEATHER_PROVIDER` | `mock` | `mock` (default, Iberia-only fixture data) \| `avwx` (real, global) \| `aemet`/`ipma`/`ead` (not yet implemented) |
+| `WEATHER_PROVIDER` | `mock` | `mock` (default, Iberia-only fixture data) \| `avwx` (real, global) \| `awc` (keyless aviationweather.gov, no NOTAMs) \| `aemet`/`ipma`/`ead` (not yet implemented) |
+| `NOTAM_PROVIDER` | follows `WEATHER_PROVIDER` | `mock` \| `avwx`; required with `WEATHER_PROVIDER=awc` |
 | `AEMET_OPENDATA_API_KEY` | — | Required by `WEATHER_PROVIDER=aemet` |
 | `IPMA_API_KEY` | — | Required by `WEATHER_PROVIDER=ipma` |
 | `EAD_API_KEY` | — | Required by `WEATHER_PROVIDER=ead` |
@@ -97,6 +118,13 @@ descriptive, secret-free error naming the offending variable.
 | `MCP_CACHE_TTL_SECONDS` | `60` | MCP response-cache TTL |
 | `MCP_RATE_LIMIT_PER_MINUTE` | `30` | Per-provider request ceiling |
 | `MCP_PROVIDER_TIMEOUT_MS` | `5000` | Upstream provider timeout |
+| `WEATHER_MCP_TRANSPORT` | `stdio` | How the web app reaches the MCP server: `stdio` (spawns it) \| `http` |
+| `WEATHER_MCP_URL` | — | MCP server URL; required with `WEATHER_MCP_TRANSPORT=http` |
+| `WEATHER_MCP_TIMEOUT_MS` | `8000` | Web app's MCP client timeout |
+| `DOCUMENT_WARNING_DAYS` | `30` | Days before a document's expiry it is flagged "expiring soon" |
+| `MAINTENANCE_WARNING_DAYS` | `30` | Days before a maintenance due date it is flagged "due soon" |
+| `MAINTENANCE_WARNING_HOURS` | `10` | Hours before a due-at-hours reading it is flagged "due soon" |
+| `ENGINE_DATA_MAX_BYTES` | `8388608` | Maximum size of an imported engine-monitor data file |
 | `LOG_LEVEL` | `info` | pino log level (incl. `silent`) |
 
 ## Test and check
@@ -117,6 +145,8 @@ docker exec ga-core-db psql -U ga -d ga_core -c "CREATE DATABASE ga_core_test"
 TEST_DATABASE_URL=postgres://ga:ga@localhost:5432/ga_core_test npm test
 ```
 
+Contributor and agent working rules are in [AGENTS.md](AGENTS.md).
+
 ## MCP server
 
 The MCP server (`mcp/aviation-weather`) runs standalone. By default it needs
@@ -125,7 +155,9 @@ Iberian aerodromes (LEMD, LEBL, LPPT, LPPR) and three Iberian FIRs (LECM,
 LECB, LPPC), always labeled as non-operational. For real, worldwide METAR/TAF
 data (e.g. `SUMU`, or any other station outside that fixture set), set
 `WEATHER_PROVIDER=avwx` and `AVWX_API_TOKEN` (free tier at
-[account.avwx.rest](https://account.avwx.rest)).
+[account.avwx.rest](https://account.avwx.rest)), or `WEATHER_PROVIDER=awc` for
+the keyless [aviationweather.gov](https://aviationweather.gov) Data API (which
+supplies no NOTAMs, so `NOTAM_PROVIDER` must also be set).
 
 **AVWX plan gating, verified live against a real free-tier token:**
 `get_metar`/`get_taf` work on the free tier (AVWX's single-station endpoints).
@@ -158,4 +190,8 @@ Both runtimes log the selected weather provider at startup. Tools:
 This is decision-support software for flight operations. Screens whose capability
 is not yet implemented render an explicit, localized notice; **no screen ever
 presents data that could be mistaken for a real briefing unless its provenance is
-labeled.**
+labeled.** Upstream failures return structured errors — never substituted data.
+
+## License
+
+[MIT](LICENSE)
